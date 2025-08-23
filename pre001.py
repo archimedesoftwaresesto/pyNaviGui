@@ -1,6 +1,6 @@
 from psglicenza import *
 
-test = 2
+test = 3
 
 if test == 2:
     import pyNaviGui as ng
