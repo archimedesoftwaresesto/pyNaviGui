@@ -4,8 +4,8 @@ An experiment! a new Python GUI library, inspired from PySimpleGUI experience , 
 
 ## Screenshots
 
-![Screenshot 1](images/screenshot1.png)
-![Screenshot 2](images/screenshot2.png)
+![Screenshot 1](images/desktop-app.png)
+![Screenshot 2](images/web-app.png)
 
 ## Features
 
