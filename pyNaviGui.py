@@ -1,3 +1,7 @@
+# Copyright (c) 2025 Dario Giacomelli
+# Licensed under the MIT License
+
+
 import tkinter as tk
 from threading import Event as ThreadEvent
 import queue

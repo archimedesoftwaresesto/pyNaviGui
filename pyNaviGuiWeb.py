@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Dario Giacomelli
+# Licensed under the MIT License
+
 import webbrowser
 import threading
 import queue
