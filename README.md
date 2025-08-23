@@ -1,6 +1,11 @@
 # pyNaviGui
 
-An experiment! a new Python GUI library, inspired from PySimpleGUI experience , to go build desktoop and web app!
+An experiment! a new Python GUI library, inspired from PySimpleGUI experience , to build desktop and web app!
+
+## Screenshots
+
+![Screenshot 1](images/screenshot1.png)
+![Screenshot 2](images/screenshot2.png)
 
 ## Features
 
