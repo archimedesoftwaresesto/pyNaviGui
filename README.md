@@ -1,6 +1,6 @@
 # pyNaviGui
 
-A new Python GUI library, inspired from PySimpleGUI experience , to go build desktoop and web app!
+An experiment! a new Python GUI library, inspired from PySimpleGUI experience , to go build desktoop and web app!
 
 ## Features
 
@@ -16,3 +16,7 @@ This project is released under the MIT License. See the LICENSE file for details
 
 **Dario Giacomelli** - [archimedesoftwaresesto](https://github.com/archimedesoftwaresesto)
 
+## Version: 0.0.1
+
+### Changelog
+- **0.0.1** (2025-08-23): First relaase, only edit and input fields, but working in the web and desktop gui
