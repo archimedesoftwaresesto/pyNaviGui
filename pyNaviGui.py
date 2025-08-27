@@ -1,89 +1,426 @@
 # Copyright (c) 2025 Dario Giacomelli
 # Licensed under the MIT License
 
-
 import tkinter as tk
-from threading import Event as ThreadEvent
 import queue
 
 
-class Ng():
-    def __init__(self, geometry=''):
-        self.root = tk.Tk()
+class Ng:
+    """Implementazione GUI basata su Tkinter - Versione unificata"""
+
+    def __init__(self, geometry='800x600'):
+        # ... codice esistente ...
+
+        # Nel metodo __init__, aggiungi questa nuova variabile dopo le altre:
+        self.initial_x = 0  # Coordinata X iniziale per l'allineamento
+
+        # Aggiungi questa linea dopo l'inizializzazione degli altri attributi
+        self.row_height = 30  # Altezza di riga di default
+
+        # Dimensioni per i prossimi elementi text e input
+        self.text_width_chars = None  # Larghezza in caratteri per i prossimi text
+        self.text_height_lines = None  # Altezza in righe per i prossimi text
+        self.input_width_chars = None  # Larghezza in caratteri per i prossimi input
+        self.input_height_lines = None  # Altezza in righe per i prossimi input
+
+        # Inizializzazione attributi base
+        self.title = 'pyNaviGui'
+        self.geometry = geometry
+        self.current_x = 0
+        self.current_y = 0
         self.elements = []
-        self.element_keys = {}  # Mappa key -> elemento
-        self.event_queue = queue.Queue()
-        self.current_event = None
+        self.element_keys = {}  # Dizionario key -> element
+        self.element_positions = {}  # Dizionario key -> (x, y, width, height)
+        self.element_strings = {}  # Dizionario key -> stringa di selezione
         self.window_closed = False
+        self.event_queue = queue.Queue()
+        self.event_handlers = {}  # Dizionario per gli handler degli eventi
+        self.initial_elements_count = 0  # Numero di elementi iniziali
+        self.element_counter = 0  # Contatore per generare ID unici per elementi senza chiave
+
+        # Inizializzazione Tkinter
+        self.root = tk.Tk()
+
+        # Applica le impostazioni iniziali
+        self._update_title_impl()
+        self._update_geometry_impl()
 
         # Gestione chiusura finestra
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def set_keys(self, max_nr_keys=100, key_start_with_string=''):
+        return [key_start_with_string + str(i) for i in range(max_nr_keys)]
 
     def _on_closing(self):
         """Chiamata quando la finestra viene chiusa"""
         self.window_closed = True
         self.event_queue.put((None, {}))
 
-    def show(self):
-        self.root.mainloop()
-        return self
+    def _update_title_impl(self):
+        """Implementazione specifica per aggiornare il titolo"""
+        if hasattr(self, 'root'):
+            self.root.title(self.title)
+
+    def _update_geometry_impl(self):
+        """Implementazione specifica per aggiornare la geometria"""
+        if hasattr(self, 'root') and self.geometry:
+            self.root.geometry(self.geometry)
+
+    def _close_impl(self):
+        """Implementazione specifica per la chiusura"""
+        if hasattr(self, 'root') and not self.window_closed:
+            self.root.quit()
+            self.root.destroy()
+
+    def _delete_element_impl(self, element):
+        """Implementazione specifica per rimuovere un elemento dalla GUI Tkinter"""
+        if hasattr(element, 'destroy'):
+            element.destroy()
 
     def winTitle(self, title):
-        self.root.title(title)
+        """Imposta il titolo della finestra"""
+        self.title = title
+        self._update_title_impl()
         return self
 
     def winGeometry(self, geometry):
-        self.root.geometry(geometry)
+        """Imposta la geometria della finestra"""
+        self.geometry = geometry
+        self._update_geometry_impl()
         return self
 
-    def goto(self, x, y):
-        self.x = x
-        self.y = y
+    def setX(self, x):
+        """Imposta la coordinata X corrente"""
+        self.current_x = x
         return self
 
-    def gotoy(self, value):
-        self.x = self.x0
-        self.y = value
+    def setY(self, y):
+        """Imposta la coordinata Y corrente"""
+        self.current_y = y
         return self
 
-    def setX(self, value):
-        self.x0 = value
+    def setTextSize(self, width_chars, height_lines=1):
+        """Imposta la dimensione per i prossimi elementi text
+
+        Args:
+            width_chars (int): Larghezza in caratteri
+            height_lines (int): Altezza in righe (default 1)
+        """
+        self.text_width_chars = width_chars
+        self.text_height_lines = height_lines
         return self
 
-    def setY(self, value):
-        self.y0 = value
+    def setInputSize(self, width_chars, height_lines=1):
+        """Imposta la dimensione per i prossimi elementi input
+
+        Args:
+            width_chars (int): Larghezza in caratteri
+            height_lines (int): Altezza in righe (default 1)
+        """
+        self.input_width_chars = width_chars
+        self.input_height_lines = height_lines
         return self
 
-    def text(self, text='', k=''):
-        label = tk.Label(self.root, text=text)
-        label.place(x=self.x, y=self.y)
-        label.update_idletasks()
-        width = label.winfo_width()
+    # Modifica il metodo gotoxy esistente:
+    def gotoxy(self, x, y):
+        """Va alle coordinate X,Y specificate e memorizza X come coordinata di inizio riga"""
+        self.current_x = x
+        self.current_y = y
+        self.initial_x = x  # Memorizza la X iniziale per i successivi crlf()
+        return self
 
-        self.x = self.x + width
-        self.elements.append(label)
+    # Modifica il metodo crlf esistente:
+    def crlf(self):
+        """Va a capo e sposta alla riga successiva usando l'altezza di riga impostata"""
+        # Se non è stata impostata un'altezza di riga, usa un valore di default
+        row_height = getattr(self, 'row_height', 30)
+
+        # Va alla riga successiva
+        self.current_y += row_height
+        # Reset della X alla coordinata iniziale (non più a 0!)
+        self.current_x = self.initial_x
+
+        return self
+
+    # Modifica anche il metodo gotoy per coerenza:
+    def gotoy(self, y):
+        """Va alla coordinata Y specificata e resetta X alla coordinata iniziale"""
+        self.current_y = y
+        self.current_x = self.initial_x  # Usa initial_x invece di 0
+        return self
+
+    def gotoBelow(self, key):
+        """Posiziona il cursore sotto l'elemento con la chiave specificata"""
+        if key in self.element_positions:
+            x, y, width, height = self.element_positions[key]
+            self.current_x = x
+            self.current_y = y + height + 5  # Aggiunge un piccolo spazio sotto l'elemento
+        return self
+
+    def exists(self, k):
+        """Controlla se un elemento con chiave k esiste (solo per chiavi definite dall'utente)"""
+        return (k in self.element_keys and
+                self.element_keys[k] is not None and
+                not k.startswith('__auto_key_'))
+
+    def delete(self, k):
+        """Cancella un elemento con chiave k"""
+        if not self.exists(k):
+            return self
+
+        element_to_remove = self.element_keys[k]
+
+        # Rimuovi l'elemento dalla lista elements
+        if element_to_remove in self.elements:
+            self.elements.remove(element_to_remove)
+
+        # Chiama l'implementazione specifica per rimuovere l'elemento dalla GUI
+        self._delete_element_impl(element_to_remove)
+
+        # Rimuovi dalle strutture dati
+        del self.element_keys[k]
+        if k in self.element_positions:
+            del self.element_positions[k]
+        if k in self.element_strings:
+            del self.element_strings[k]
+
+        return self
+
+    def _update_position(self, width, height=20):
+        """Aggiorna la posizione corrente dopo aver aggiunto un elemento"""
+        self.current_x += width + 5  # Spazio tra elementi
+
+    def _register_element(self, element, key, s=''):
+        """Registra un elemento con la sua chiave e stringa di selezione"""
+        self.elements.append(element)
+
+        # Se non c'è chiave, genera un ID interno univoco
+        if not key:
+            key = f"__auto_key_{self.element_counter}"
+            self.element_counter += 1
+
+        self.element_keys[key] = element
+
+        if s:
+            self.element_strings[key] = s
+
+    def _register_element_position(self, key, x, y, width, height):
+        """Registra la posizione di un elemento"""
+        if key:
+            self.element_positions[key] = (x, y, width, height)
+
+    def register_event_handler(self, event_key, handler_func):
+        """Registra un handler per un evento specifico"""
+        self.event_handlers[event_key] = handler_func
+
+    def process_event(self, event_key, values):
+        """Processa un evento usando l'handler registrato"""
+        if event_key in self.event_handlers:
+            return self.event_handlers[event_key](values)
+        return None
+
+    def finalize_layout(self):
+        """Finalizza il layout iniziale e memorizza il numero di elementi"""
+        self.initial_elements_count = len(self.elements)
+        return self
+
+    def clear_error_messages(self):
+        """Rimuove tutti gli elementi aggiunti dinamicamente (messaggi di errore)"""
+        if self.initial_elements_count > 0:
+            # Ottieni gli elementi da rimuovere (quelli aggiunti dinamicamente)
+            elements_to_remove = self.elements[self.initial_elements_count:]
+
+            # Rimuovi gli elementi dalla GUI usando l'implementazione specifica
+            for element in elements_to_remove:
+                self._delete_element_impl(element)
+
+            # Mantieni solo gli elementi iniziali
+            self.elements = self.elements[:self.initial_elements_count]
+
+            # Rimuovi le chiavi e posizioni degli elementi dinamici
+            keys_to_remove = []
+            for key in list(self.element_keys.keys()):
+                # Se l'elemento non è tra quelli iniziali, rimuovilo
+                element = self.element_keys[key]
+                if element not in self.elements:
+                    keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                if key in self.element_keys:
+                    del self.element_keys[key]
+                if key in self.element_positions:
+                    del self.element_positions[key]
+                if key in self.element_strings:
+                    del self.element_strings[key]
+        return self
+
+    def _get_matching_keys(self, k='', kstart='', shas=''):
+        """Restituisce le chiavi degli elementi che soddisfano i criteri di selezione
+
+        Args:
+            k (str): Chiave specifica dell'elemento
+            kstart (str): Prefisso per selezionare elementi le cui chiavi iniziano con questo valore
+            shas (str): Seleziona elementi la cui stringa s CONTIENE questo valore
+        """
+        matching_keys = []
 
         if k:
-            self.element_keys[k] = label
+            # Comportamento originale: singolo elemento
+            if self.exists(k):
+                matching_keys.append(k)
+
+        elif kstart:
+            # Seleziona per prefisso chiave (esclude chiavi auto-generate)
+            matching_keys = [key for key in self.element_keys.keys()
+                             if not key.startswith('__auto_key_') and key.startswith(kstart)]
+
+        elif shas:
+            # Seleziona per stringa s che CONTIENE - include tutti gli elementi
+            matching_keys = [key for key, s_val in self.element_strings.items()
+                             if shas in s_val]
+
+        return matching_keys
+
+    def visible(self, is_visible, shas='', k='', kstart=''):
+        """Imposta la visibilità di un elemento o gruppo di elementi
+
+        Args:
+            is_visible (bool): True per rendere visibile, False per nascondere
+            shas (str): [PREFERITO] Seleziona elementi la cui stringa s contiene questo valore
+            k (str): Chiave specifica dell'elemento (per compatibilità)
+            kstart (str): Prefisso per selezionare tutti gli elementi le cui chiavi iniziano con questo valore
+        """
+        matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
+
+        for key in matching_keys:
+            if key in self.element_keys:  # Verifica che la chiave esista (include anche quelle auto-generate)
+                element = self.element_keys[key]
+                self._set_visible_impl(element, is_visible)
 
         return self
 
-    def input(self, text='', k=''):
-        entry = tk.Entry(self.root)
+    def _set_visible_impl(self, element, is_visible):
+        """Implementazione specifica per impostare la visibilità in Tkinter"""
+        if hasattr(element, 'place'):
+            if is_visible:
+                # Riposiziona l'elemento nella sua posizione originale
+                # Trova la chiave dell'elemento per recuperare la posizione
+                for key, el in self.element_keys.items():
+                    if el == element and key in self.element_positions:
+                        x, y, width, height = self.element_positions[key]
+                        element.place(x=x, y=y)
+                        break
+            else:
+                # Nasconde l'elemento rimuovendolo dal layout
+                element.place_forget()
+
+    def move(self, xAdd=0, yAdd=0, shas='', k='', kstart=''):
+        """Sposta un elemento o gruppo di elementi
+
+        Args:
+            xAdd (int): Pixel da aggiungere alla coordinata X
+            yAdd (int): Pixel da aggiungere alla coordinata Y
+            shas (str): [PREFERITO] Seleziona elementi la cui stringa s contiene questo valore
+            k (str): Chiave specifica dell'elemento (per compatibilità)
+            kstart (str): Prefisso per selezionare tutti gli elementi le cui chiavi iniziano con questo valore
+        """
+        matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
+
+        for key in matching_keys:
+            if key in self.element_keys:  # Verifica che la chiave esista (include anche quelle auto-generate)
+                element = self.element_keys[key]
+                # Aggiorna la posizione salvata
+                if key in self.element_positions:
+                    x, y, width, height = self.element_positions[key]
+                    new_x = x + xAdd
+                    new_y = y + yAdd
+                    self.element_positions[key] = (new_x, new_y, width, height)
+                    self._move_element_impl(element, new_x, new_y)
+
+        return self
+
+    def _move_element_impl(self, element, new_x, new_y):
+        """Implementazione specifica per spostare un elemento in Tkinter"""
+        if hasattr(element, 'place'):
+            element.place(x=new_x, y=new_y)
+
+    def show(self):
+        """Avvia il loop principale di Tkinter"""
+        self.root.mainloop()
+        return self
+
+    def text(self, text='', k='', s='', fg='', bg=''):
+        """Crea un elemento di testo usando Tkinter Label"""
+        # Costruisci le opzioni per il Label
+        label_options = {'text': text}
+        if fg:  # Se il colore del testo è specificato
+            label_options['fg'] = fg
+        if bg:  # Se il colore di sfondo è specificato
+            label_options['bg'] = bg
+
+        # Applica le dimensioni se specificate
+        if self.text_width_chars is not None:
+            label_options['width'] = self.text_width_chars
+            # Quando viene specificata una larghezza, allinea a sinistra
+            label_options['anchor'] = 'w'  # 'w' = west = sinistra
+        if self.text_height_lines is not None and self.text_height_lines > 1:
+            label_options['height'] = self.text_height_lines
+
+        label = tk.Label(self.root, **label_options)
+        label.place(x=self.current_x, y=self.current_y)
+        label.update_idletasks()
+        width = label.winfo_reqwidth()
+        height = label.winfo_reqheight()
+
+        # Ottieni la chiave effettiva che verrà usata (potrebbe essere auto-generata)
+        effective_key = k if k else f"__auto_key_{self.element_counter}"
+
+        # Registra la posizione dell'elemento
+        self._register_element_position(effective_key, self.current_x, self.current_y, width, height)
+
+        self._update_position(width, height)
+        self._register_element(label, k, s)
+
+        return self
+
+    def input(self, text='', k='', s=''):
+        """Crea un elemento di input usando Tkinter Entry"""
+        # Costruisci le opzioni per l'Entry
+        entry_options = {}
+
+        # Applica le dimensioni se specificate
+        if self.input_width_chars is not None:
+            entry_options['width'] = self.input_width_chars
+
+        entry = tk.Entry(self.root, **entry_options)
         if text:
             entry.insert(0, text)
-        entry.place(x=self.x, y=self.y)
+        entry.place(x=self.current_x, y=self.current_y)
         entry.update_idletasks()
-        width = entry.winfo_width()
-        self.x = self.x + width
-        self.elements.append(entry)
+        width = entry.winfo_reqwidth()
+        height = entry.winfo_reqheight()
 
-        if k:
-            self.element_keys[k] = entry
+        # Per gli input multi-riga (se height_lines > 1), potremmo usare Text invece di Entry
+        # ma per ora manteniamo Entry anche per compatibilità
+        if self.input_height_lines is not None and self.input_height_lines > 1:
+            # Nota: Entry in Tkinter è sempre single-line. Per multi-riga servirebbero modifiche più profonde
+            # Per ora ignoriamo l'altezza in linee per gli Entry
+            pass
+
+        # Ottieni la chiave effettiva che verrà usata (potrebbe essere auto-generata)
+        effective_key = k if k else f"__auto_key_{self.element_counter}"
+
+        # Registra la posizione dell'elemento
+        self._register_element_position(effective_key, self.current_x, self.current_y, width, height)
+
+        self._update_position(width, height)
+        self._register_element(entry, k, s)
 
         return self
 
-    def button(self, text='', k='', command=None):
+    def button(self, text='', k='', s='', command=None):
+        """Crea un bottone usando Tkinter Button"""
+
         def button_callback():
             if k:
                 # Metti l'evento nella coda
@@ -93,15 +430,19 @@ class Ng():
                 command()
 
         button = tk.Button(self.root, text=text, command=button_callback)
-        button.place(x=self.x, y=self.y)
+        button.place(x=self.current_x, y=self.current_y)
         button.update_idletasks()
-        width = button.winfo_width()
+        width = button.winfo_reqwidth()
+        height = button.winfo_reqheight()
 
-        self.x = self.x + width
-        self.elements.append(button)
+        # Ottieni la chiave effettiva che verrà usata (potrebbe essere auto-generata)
+        effective_key = k if k else f"__auto_key_{self.element_counter}"
 
-        if k:
-            self.element_keys[k] = button
+        # Registra la posizione dell'elemento
+        self._register_element_position(effective_key, self.current_x, self.current_y, width, height)
+
+        self._update_position(width, height)
+        self._register_element(button, k, s)
 
         return self
 
@@ -109,12 +450,13 @@ class Ng():
         """Raccoglie tutti i valori degli elementi input"""
         values = {}
         for key, element in self.element_keys.items():
-            if isinstance(element, tk.Entry):
+            # Solo per elementi con chiave definita dall'utente
+            if not key.startswith('__auto_key_') and isinstance(element, tk.Entry):
                 values[key] = element.get()
         return values
 
     def read(self, timeout=None):
-        """Legge il prossimo evento (simile a PySimpleGUI)"""
+        """Legge il prossimo evento (versione Tkinter)"""
         if self.window_closed:
             return None, {}
 
@@ -127,8 +469,7 @@ class Ng():
                 event, values = self.event_queue.get_nowait()
                 return event, values
             else:
-                # Se non ci sono eventi, restituisce None per ora
-                # (in una versione più avanzata potresti implementare il timeout)
+                # Se non ci sono eventi, restituisce stringa vuota
                 return '', {}
 
         except tk.TclError:
@@ -138,7 +479,10 @@ class Ng():
 
     def close(self):
         """Chiude la finestra"""
-        if not self.window_closed:
-            self.root.quit()
-            self.root.destroy()
-            self.window_closed = True
+        self.window_closed = True
+        self._close_impl()
+
+    def setRowHeigh(self, height):
+        """Imposta l'altezza della riga corrente (virtuale)"""
+        self.row_height = height
+        return self
