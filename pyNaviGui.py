@@ -6,22 +6,27 @@ import queue
 
 
 class Ng:
-    """Implementazione GUI basata su Tkinter - Versione unificata"""
+    """Implementazione GUI basata su Tkinter - Versione unificata con funzione set()"""
 
     def __init__(self, geometry='800x600'):
-        # ... codice esistente ...
+        # Coordinata X iniziale per l'allineamento
+        self.initial_x = 0
 
-        # Nel metodo __init__, aggiungi questa nuova variabile dopo le altre:
-        self.initial_x = 0  # Coordinata X iniziale per l'allineamento
-
-        # Aggiungi questa linea dopo l'inizializzazione degli altri attributi
-        self.row_height = 30  # Altezza di riga di default
+        # Altezza di riga di default
+        self.row_height = 30
 
         # Dimensioni per i prossimi elementi text e input
         self.text_width_chars = None  # Larghezza in caratteri per i prossimi text
         self.text_height_lines = None  # Altezza in righe per i prossimi text
         self.input_width_chars = None  # Larghezza in caratteri per i prossimi input
         self.input_height_lines = None  # Altezza in righe per i prossimi input
+
+        # NUOVE VARIABILI PER LA FUNZIONE set()
+        # Parametri di default che verranno applicati automaticamente
+        self.default_s = ''  # Stringa di selezione di default
+        self.default_fg = ''  # Colore testo di default
+        self.default_bg = ''  # Colore sfondo di default
+        self.default_k_prefix = ''  # Prefisso per le chiavi di default
 
         # Inizializzazione attributi base
         self.title = 'pyNaviGui'
@@ -77,6 +82,53 @@ class Ng:
         if hasattr(element, 'destroy'):
             element.destroy()
 
+    def set(self, s=None, fg=None, bg=None, k_prefix=None):
+        """Imposta parametri di default per tutti gli elementi successivi
+
+        Args:
+            s (str): Stringa di selezione di default (per visible, move, etc.)
+            fg (str): Colore del testo di default
+            bg (str): Colore dello sfondo di default
+            k_prefix (str): Prefisso da aggiungere automaticamente alle chiavi
+
+        Per resettare un parametro, passa una stringa vuota ''
+        Per non modificare un parametro, non passarlo o passa None
+        """
+        if s is not None:
+            self.default_s = s
+        if fg is not None:
+            self.default_fg = fg
+        if bg is not None:
+            self.default_bg = bg
+        if k_prefix is not None:
+            self.default_k_prefix = k_prefix
+
+        return self
+
+    def _merge_defaults(self, s='', fg='', bg='', k=''):
+        """Unisce i parametri passati con quelli di default
+
+        I parametri espliciti hanno sempre precedenza sui default
+        """
+        merged_s = s if s else self.default_s
+        merged_fg = fg if fg else self.default_fg
+        merged_bg = bg if bg else self.default_bg
+
+        # Per le chiavi, aggiungi il prefisso solo se c'è una chiave
+        merged_k = k
+        if k and self.default_k_prefix:
+            merged_k = self.default_k_prefix + k
+
+        return merged_s, merged_fg, merged_bg, merged_k
+
+    def resetDefaults(self):
+        """Resetta tutti i parametri di default"""
+        self.default_s = ''
+        self.default_fg = ''
+        self.default_bg = ''
+        self.default_k_prefix = ''
+        return self
+
     def winTitle(self, title):
         """Imposta il titolo della finestra"""
         self.title = title
@@ -121,7 +173,6 @@ class Ng:
         self.input_height_lines = height_lines
         return self
 
-    # Modifica il metodo gotoxy esistente:
     def gotoxy(self, x, y):
         """Va alle coordinate X,Y specificate e memorizza X come coordinata di inizio riga"""
         self.current_x = x
@@ -129,7 +180,6 @@ class Ng:
         self.initial_x = x  # Memorizza la X iniziale per i successivi crlf()
         return self
 
-    # Modifica il metodo crlf esistente:
     def crlf(self):
         """Va a capo e sposta alla riga successiva usando l'altezza di riga impostata"""
         # Se non è stata impostata un'altezza di riga, usa un valore di default
@@ -142,19 +192,21 @@ class Ng:
 
         return self
 
-    # Modifica anche il metodo gotoy per coerenza:
     def gotoy(self, y):
         """Va alla coordinata Y specificata e resetta X alla coordinata iniziale"""
         self.current_y = y
         self.current_x = self.initial_x  # Usa initial_x invece di 0
         return self
 
-    def gotoBelow(self, key):
-        """Posiziona il cursore sotto l'elemento con la chiave specificata"""
-        if key in self.element_positions:
-            x, y, width, height = self.element_positions[key]
+    def gotoBelow(self, k):
+        """Posiziona il cursore sotto l'elemento con la chiave specificata e
+        aggiorna initial_x per mantenere l'allineamento in colonna"""
+        if k in self.element_positions:
+            x, y, width, height = self.element_positions[k]
             self.current_x = x
             self.current_y = y + height + 5  # Aggiunge un piccolo spazio sotto l'elemento
+            # CORREZIONE: Aggiorna anche initial_x per mantenere l'allineamento della colonna
+            self.initial_x = x
         return self
 
     def exists(self, k):
@@ -351,6 +403,9 @@ class Ng:
 
     def text(self, text='', k='', s='', fg='', bg=''):
         """Crea un elemento di testo usando Tkinter Label"""
+        # Applica i default
+        s, fg, bg, k = self._merge_defaults(s, fg, bg, k)
+
         # Costruisci le opzioni per il Label
         label_options = {'text': text}
         if fg:  # Se il colore del testo è specificato
@@ -385,6 +440,9 @@ class Ng:
 
     def input(self, text='', k='', s=''):
         """Crea un elemento di input usando Tkinter Entry"""
+        # Applica i default
+        s, _, _, k = self._merge_defaults(s, '', '', k)
+
         # Costruisci le opzioni per l'Entry
         entry_options = {}
 
@@ -420,6 +478,8 @@ class Ng:
 
     def button(self, text='', k='', s='', command=None):
         """Crea un bottone usando Tkinter Button"""
+        # Applica i default
+        s, _, _, k = self._merge_defaults(s, '', '', k)
 
         def button_callback():
             if k:
