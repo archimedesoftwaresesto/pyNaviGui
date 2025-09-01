@@ -12,8 +12,13 @@ class Ng:
         # Coordinata X iniziale per l'allineamento
         self.initial_x = 0
 
-        # Altezza di riga di default
-        self.row_height = 30
+        # Altezza di riga di default (RIDOTTA per essere più compatta)
+        self.row_height = 22  # Era 30, ora 22
+
+        # CORREZIONE: Tracciamento dell'altezza effettiva della riga corrente
+        self.current_row_height = 0  # Altezza dell'elemento più alto nella riga corrente
+        self.current_row_start_y = 0  # Y di inizio della riga corrente
+        self.current_row_max_height = 0  # NUOVO: altezza massima rilevata nella riga corrente
 
         # Dimensioni per i prossimi elementi text e input
         self.text_width_chars = None  # Larghezza in caratteri per i prossimi text
@@ -52,6 +57,22 @@ class Ng:
 
         # Gestione chiusura finestra
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _start_new_row(self):
+        """Inizia una nuova riga virtuale, resettando il tracciamento dell'altezza"""
+        self.current_row_start_y = self.current_y
+        self.current_row_height = self.row_height  # Altezza minima di default
+        self.current_row_max_height = 0  # RESET del massimo della riga
+
+    def _update_row_height(self, element_height):
+        """CORREZIONE: Aggiorna l'altezza massima della riga corrente"""
+        # Traccia l'altezza dell'elemento più alto nella riga corrente
+        if element_height > self.current_row_max_height:
+            self.current_row_max_height = element_height
+
+        # Aggiorna anche current_row_height per compatibilità
+        if element_height > self.current_row_height:
+            self.current_row_height = element_height
 
     def set_keys(self, max_nr_keys=100, key_start_with_string=''):
         return [key_start_with_string + str(i) for i in range(max_nr_keys)]
@@ -178,17 +199,31 @@ class Ng:
         self.current_x = x
         self.current_y = y
         self.initial_x = x  # Memorizza la X iniziale per i successivi crlf()
+
+        # Inizia una nuova riga virtuale
+        self._start_new_row()
+
         return self
 
-    def crlf(self):
-        """Va a capo e sposta alla riga successiva usando l'altezza di riga impostata"""
-        # Se non è stata impostata un'altezza di riga, usa un valore di default
-        row_height = getattr(self, 'row_height', 30)
+    def crlf(self, spacing=0):
+        """CORREZIONE: Va a capo usando l'altezza dell'elemento più alto della riga corrente
 
-        # Va alla riga successiva
-        self.current_y += row_height
-        # Reset della X alla coordinata iniziale (non più a 0!)
+        Args:
+            spacing (int): Spazio aggiuntivo tra righe (default 0)
+        """
+        # USA L'ALTEZZA MASSIMA RILEVATA NELLA RIGA CORRENTE
+        if self.current_row_max_height > 0:
+            # Usa l'altezza dell'elemento più alto + un piccolo margine
+            self.current_y = self.current_row_start_y + self.current_row_max_height + spacing + 3
+        else:
+            # Fallback: usa l'altezza di default se non sono stati aggiunti elementi
+            self.current_y = self.current_row_start_y + self.row_height + spacing
+
+        # Reset della X alla coordinata iniziale
         self.current_x = self.initial_x
+
+        # Inizia una nuova riga virtuale
+        self._start_new_row()
 
         return self
 
@@ -196,6 +231,10 @@ class Ng:
         """Va alla coordinata Y specificata e resetta X alla coordinata iniziale"""
         self.current_y = y
         self.current_x = self.initial_x  # Usa initial_x invece di 0
+
+        # Inizia una nuova riga virtuale
+        self._start_new_row()
+
         return self
 
     def gotoBelow(self, k):
@@ -207,6 +246,8 @@ class Ng:
             self.current_y = y + height + 5  # Aggiunge un piccolo spazio sotto l'elemento
             # CORREZIONE: Aggiorna anche initial_x per mantenere l'allineamento della colonna
             self.initial_x = x
+            # Inizia una nuova riga virtuale
+            self._start_new_row()
         return self
 
     def exists(self, k):
@@ -240,6 +281,9 @@ class Ng:
 
     def _update_position(self, width, height=20):
         """Aggiorna la posizione corrente dopo aver aggiunto un elemento"""
+        # CORREZIONE: Aggiorna il tracciamento dell'altezza massima della riga
+        self._update_row_height(height)
+
         self.current_x += width + 5  # Spazio tra elementi
 
     def _register_element(self, element, key, s=''):
@@ -352,18 +396,31 @@ class Ng:
         return self
 
     def _set_visible_impl(self, element, is_visible):
-        """Implementazione specifica per impostare la visibilità in Tkinter"""
+        """Implementazione migliorata per impostare la visibilità in Tkinter"""
         if hasattr(element, 'place'):
             if is_visible:
-                # Riposiziona l'elemento nella sua posizione originale
-                # Trova la chiave dell'elemento per recuperare la posizione
+                # Prima cerca nelle posizioni degli elementi normali
+                element_found = False
                 for key, el in self.element_keys.items():
                     if el == element and key in self.element_positions:
                         x, y, width, height = self.element_positions[key]
                         element.place(x=x, y=y)
+                        element_found = True
                         break
+
+                # Se non trovato, cerca nei gruppi di checkbox
+                if not element_found and hasattr(self, '_checkbox_element_positions'):
+                    for group_key, elements_positions in self._checkbox_element_positions.items():
+                        for el, pos in elements_positions:
+                            if el == element:
+                                x, y = pos
+                                element.place(x=x, y=y)
+                                element_found = True
+                                break
+                        if element_found:
+                            break
             else:
-                # Nasconde l'elemento rimuovendolo dal layout
+                # Nasconde l'elemento
                 element.place_forget()
 
     def move(self, xAdd=0, yAdd=0, shas='', k='', kstart=''):
@@ -506,13 +563,145 @@ class Ng:
 
         return self
 
+    def checkboxes(self, title_or_options, options=None, k='', s=''):
+        """Crea un gruppo di checkbox usando Tkinter Checkbutton"""
+        # Applica i default
+        s, _, _, k = self._merge_defaults(s, '', '', k)
+
+        # Determina se abbiamo un titolo o no
+        if options is None:
+            title = None
+            checkbox_options = title_or_options
+        else:
+            title = title_or_options
+            checkbox_options = options
+
+        # Posizione iniziale per il gruppo
+        start_x = self.current_x
+        start_y = self.current_y
+        max_width = 0
+        checkbox_height = 22
+        title_height = 0
+
+        # Se c'è un titolo, crealo prima
+        title_element = None
+        if title:
+            title_element = tk.Label(self.root, text=title, anchor='w')
+            title_element.place(x=start_x, y=start_y)
+            title_element.update_idletasks()
+
+            title_width = title_element.winfo_reqwidth()
+            title_height = title_element.winfo_reqheight()
+            max_width = max(max_width, title_width)
+            self.current_y += title_height + 2
+
+        # Parsing delle opzioni
+        parsed_options = []
+        for option in checkbox_options:
+            if isinstance(option, str) and '|' in option:
+                display_text, value = option.split('|', 1)
+            else:
+                display_text = value = str(option)
+            parsed_options.append((display_text, value))
+
+        if not hasattr(self, '_checkbox_groups'):
+            self._checkbox_groups = {}
+
+        checkbox_vars = []
+        checkboxes_elements = []
+        element_positions = []  # Lista per salvare le posizioni di ogni elemento
+
+        # Se abbiamo un titolo, registralo
+        if title_element:
+            checkboxes_elements.append(title_element)
+            element_positions.append((start_x, start_y))
+
+        checkbox_start_y = self.current_y
+
+        for i, (display_text, value) in enumerate(parsed_options):
+            var = tk.BooleanVar()
+            checkbox_vars.append((var, value))
+
+            checkbox = tk.Checkbutton(
+                self.root,
+                text=display_text,
+                variable=var,
+                anchor='w'
+            )
+
+            checkbox.place(x=self.current_x, y=self.current_y)
+            checkbox.update_idletasks()
+
+            width = checkbox.winfo_reqwidth()
+            height = max(checkbox.winfo_reqheight(), checkbox_height)
+
+            checkboxes_elements.append(checkbox)
+            element_positions.append((self.current_x, self.current_y))  # Salva posizione
+
+            max_width = max(max_width, width)
+
+            if i < len(parsed_options) - 1:
+                self.current_y += height
+
+        # Determina la chiave effettiva
+        if k:
+            self._checkbox_groups[k] = checkbox_vars
+            effective_key = k
+        else:
+            effective_key = f"__auto_key_{self.element_counter}"
+            self.element_counter += 1
+            self._checkbox_groups[effective_key] = checkbox_vars
+
+        total_height = title_height + len(parsed_options) * checkbox_height
+        if title_height > 0:
+            total_height += 2
+
+        self._register_element_position(effective_key, start_x, start_y, max_width, total_height)
+
+        # CORREZIONE: Registra ogni elemento con la sua posizione per la visibilità
+        if not hasattr(self, '_checkbox_element_positions'):
+            self._checkbox_element_positions = {}
+
+        # Salva le posizioni di tutti gli elementi del gruppo
+        self._checkbox_element_positions[effective_key] = list(zip(checkboxes_elements, element_positions))
+
+        # Registra la stringa s per il gruppo
+        if s:
+            self.element_strings[effective_key] = s
+
+        # Registra tutti gli elementi del gruppo
+        for element in checkboxes_elements:
+            self._register_element(element, '', s)
+
+        # Aggiorna tracciamento altezza riga
+        self._update_row_height(total_height)
+
+        # Posizionamento per elemento successivo
+        self.current_x = start_x + max_width + 10
+        self.current_y = start_y
+
+        return self
+
+
     def _get_values(self):
-        """Raccoglie tutti i valori degli elementi input"""
+        """Raccoglie tutti i valori degli elementi input e checkbox"""
         values = {}
+
+        # Valori degli input (implementazione esistente)
         for key, element in self.element_keys.items():
-            # Solo per elementi con chiave definita dall'utente
             if not key.startswith('__auto_key_') and isinstance(element, tk.Entry):
                 values[key] = element.get()
+
+        # Valori dei gruppi di checkbox
+        if hasattr(self, '_checkbox_groups'):
+            for key, checkbox_vars in self._checkbox_groups.items():
+                if not key.startswith('__auto_key_'):
+                    selected_values = []
+                    for var, value in checkbox_vars:
+                        if var.get():  # Se il checkbox è selezionato
+                            selected_values.append(value)
+                    values[key] = selected_values
+
         return values
 
     def read(self, timeout=None):
