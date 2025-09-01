@@ -20,7 +20,7 @@ ref_x = 80
 # first tab
 
 ref_y = 40
-(window.gotoxy(ref_x,ref_y).setRowHeigh(20).setInputSize(30,1).
+(window.gotoxy(ref_x,ref_y).
  set(s='t1').
  text('Name').crlf().
  input('', k=KEY_NAME).crlf().
@@ -28,7 +28,8 @@ ref_y = 40
  input('', k=KEY_SURNAME).crlf().
  text('Date of born').crlf().
  input('', k=KEY_BORN).
- gotoxy(ref_x + 220 ,ref_y).setRowHeigh(20).setInputSize(30,1).
+
+ gotoxy(ref_x + 220 ,ref_y).
  text('Weight').crlf().
  input('',  k=KEY_WEIGHT).crlf().
  text('Age').crlf().
@@ -38,7 +39,7 @@ ref_y = 40
  )
 
 # second tab
-(window.gotoxy(ref_x   ,ref_y).setRowHeigh(25).setInputSize(30,1).
+(window.gotoxy(ref_x   ,ref_y).
  set(s='t2').
  text('Address 1').input('', k=KEY_ADDRESS_1).crlf().
  text('Address 2').input('', k=KEY_ADDRESS_2).crlf().
@@ -47,7 +48,7 @@ ref_y = 40
  )
 
 # third tab
-(window.gotoxy(90   ,60).setRowHeigh(25).setInputSize(30,1).
+(window.gotoxy(90   ,60).
 set(s='t3').
  text('Note 1').crlf().
  input('', k=KEY_NOTE_1).crlf().
