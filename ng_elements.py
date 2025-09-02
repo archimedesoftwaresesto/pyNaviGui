@@ -1170,6 +1170,432 @@ class NgElements:
 
         return self
 
+    # Aggiungi questo metodo alla classe NgElements in ng_elements.py
+    # Inseriscilo dopo il metodo image() e prima di _get_values()
+
+    # Aggiungi questo metodo alla classe NgElements in ng_elements.py
+    # Inseriscilo dopo il metodo image() e prima di _get_values()
+
+    def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images=''):
+        """Crea una tabella navigabile con immagini e paginazione automatica
+
+        Args:
+            title_or_conf: Se conf è None, è la configurazione delle colonne; altrimenti è il titolo
+            conf (dict): Configurazione colonne nel formato {'COL_KEY': ['Display Name', width], ...}
+            data (list): Dati da mostrare. CONVENZIONE: L'ULTIMA colonna deve SEMPRE contenere il nome del file immagine
+                        Esempio: [['Mario', 'Rossi', 30, 'mario.jpg'], ['Luigi', 'Bianchi', 25, 'luigi.png']]
+            nr_rows (int): Numero di righe visibili per pagina (default 5)
+            k (str): Chiave per identificare la tabella navigabile
+            s (str): Stringa di selezione per operazioni di visibilità
+            folder_images (str): Percorso della cartella contenente le immagini
+
+        Nota: La configurazione 'conf' definisce solo le colonne di testo visibili.
+              L'immagine viene sempre presa dall'ultima colonna dei dati.
+        """
+        # Applica i default
+        s, _, _, k = self._merge_defaults(s, '', '', k)
+
+        # Determina se abbiamo un titolo o no
+        if conf is None:
+            title = None
+            table_conf = title_or_conf if title_or_conf else {'COL1': ['Colonna 1', 15]}
+        else:
+            title = title_or_conf
+            table_conf = conf if conf else {'COL1': ['Colonna 1', 15]}
+
+        # Dati di default se non specificati
+        if data is None:
+            data = []
+
+        # Posizione iniziale per il gruppo
+        start_x = self.current_x
+        start_y = self.current_y
+        max_width = 0
+        title_height = 0
+
+        # Se c'è un titolo, crealo prima
+        title_element = None
+        if title:
+            title_element = tk.Label(self.root, text=title, anchor='w')
+            title_element.place(x=start_x, y=start_y)
+            title_element.update_idletasks()
+
+            title_width = title_element.winfo_reqwidth()
+            title_height = title_element.winfo_reqheight()
+            max_width = max(max_width, title_width)
+            self.current_y += title_height + 2
+
+        # Determina la chiave effettiva
+        if k:
+            effective_key = k
+        else:
+            effective_key = f"__auto_key_{self.element_counter}"
+            self.element_counter += 1
+
+        # Inizializza i dizionari per la tabella navigabile se non esistono
+        if not hasattr(self, '_navtable_groups'):
+            self._navtable_groups = {}
+        if not hasattr(self, '_navtable_element_positions'):
+            self._navtable_element_positions = {}
+
+        # Calcola parametri di paginazione
+        righe_per_pagina = nr_rows
+        totale_pagine = (len(data) + righe_per_pagina - 1) // righe_per_pagina if data else 1
+        pagina_corrente = 0
+
+        # Lista per tenere traccia di tutti gli elementi del componente
+        navtable_elements = []
+        element_positions = []
+
+        # Se abbiamo un titolo, registralo
+        if title_element:
+            navtable_elements.append(title_element)
+            element_positions.append((start_x, start_y))
+
+        # Posizione per il contenuto della tabella
+        content_start_y = self.current_y
+
+        # CORREZIONE BUG: Crea SEMPRE nr_rows righe, anche se i dati sono meno
+        riga_height = 60  # Altezza di ogni riga
+
+        # Salva le informazioni per la gestione delle righe
+        righe_elements = []  # Lista di liste: ogni sottolista contiene gli elementi di una riga
+
+        # CORREZIONE: Crea sempre nr_rows righe per evitare il bug di visualizzazione
+        for i in range(nr_rows):
+            riga_y = content_start_y + i * riga_height
+            riga_elements_list = []  # Elementi di questa specifica riga
+
+            # Determina se questa riga ha dati da mostrare inizialmente
+            has_initial_data = i < len(data) if data else False
+
+            # Immagine della riga - SEMPRE l'ultima colonna contiene il nome del file
+            if has_initial_data and data[i]:
+                image_filename = data[i][-1]  # Ultima colonna = nome immagine
+                image_path = os.path.join(folder_images, image_filename) if folder_images else image_filename
+                if not os.path.exists(image_path):
+                    image_path = ''  # Usa placeholder se il file non esiste
+            else:
+                image_path = ''
+
+            # Crea l'immagine
+            img_element = self._create_image_element(image_path, 50, 50, start_x, riga_y,
+                                                     f"{effective_key}_IMG_ROW_{i}", f"{effective_key}_riga_{i}")
+            navtable_elements.append(img_element)
+            element_positions.append((start_x, riga_y))
+            riga_elements_list.append(img_element)
+
+            # Crea i testi per le colonne (escludi l'ultima che è sempre l'immagine)
+            current_x_text = start_x + 60  # Spazio dopo l'immagine
+            keylist = list(table_conf.keys())
+
+            for j, col_key in enumerate(keylist):
+                if has_initial_data and j < len(data[i]) - 1:  # -1 per escludere l'ultima colonna (immagine)
+                    text_content = str(data[i][j])
+                else:
+                    text_content = ''
+
+                text_width = table_conf[col_key][1] * 10  # Converti in pixel
+
+                text_element = tk.Label(self.root, text=text_content, width=table_conf[col_key][1], anchor='w')
+                text_element.place(x=current_x_text, y=riga_y)
+                text_element.update_idletasks()
+
+                navtable_elements.append(text_element)
+                element_positions.append((current_x_text, riga_y))
+                riga_elements_list.append(text_element)
+
+                current_x_text += text_width + 5
+
+            # CORREZIONE: Se non ci sono dati iniziali, nascondi subito la riga
+            if not has_initial_data:
+                for element in riga_elements_list:
+                    if hasattr(element, 'place_forget'):
+                        element.place_forget()
+
+            righe_elements.append(riga_elements_list)
+            max_width = max(max_width, current_x_text - start_x)
+
+        # Crea i bottoni di navigazione
+        nav_y = content_start_y + nr_rows * riga_height + 10
+
+        # Bottone Indietro
+        btn_indietro = tk.Button(self.root, text="  <<  ",
+                                 command=lambda: self._navtable_navigate(effective_key, -1))
+        btn_indietro.place(x=start_x, y=nav_y)
+        btn_indietro.update_idletasks()
+        navtable_elements.append(btn_indietro)
+        element_positions.append((start_x, nav_y))
+
+        # Bottone Avanti
+        btn_avanti_x = start_x + btn_indietro.winfo_reqwidth() + 5
+        btn_avanti = tk.Button(self.root, text="  >>  ",
+                               command=lambda: self._navtable_navigate(effective_key, 1))
+        btn_avanti.place(x=btn_avanti_x, y=nav_y)
+        btn_avanti.update_idletasks()
+        navtable_elements.append(btn_avanti)
+        element_positions.append((btn_avanti_x, nav_y))
+
+        # Label pagina corrente
+        lbl_pagina_x = btn_avanti_x + btn_avanti.winfo_reqwidth() + 10
+        lbl_pagina = tk.Label(self.root, text=f" Pagina 1/{totale_pagine}", width=20, anchor='w')
+        lbl_pagina.place(x=lbl_pagina_x, y=nav_y)
+        lbl_pagina.update_idletasks()
+        navtable_elements.append(lbl_pagina)
+        element_positions.append((lbl_pagina_x, nav_y))
+
+        # Calcola dimensioni totali
+        total_height = (title_height + 2 if title_height > 0 else 0) + \
+                       nr_rows * riga_height + \
+                       btn_indietro.winfo_reqheight() + 15
+
+        # Salva tutte le informazioni necessarie per la gestione della tabella
+        navtable_data = {
+            'conf': table_conf,
+            'data': data,
+            'nr_rows': righe_per_pagina,
+            'folder_images': folder_images,
+            'pagina_corrente': pagina_corrente,
+            'totale_pagine': totale_pagine,
+            'righe_elements': righe_elements,
+            'btn_indietro': btn_indietro,
+            'btn_avanti': btn_avanti,
+            'lbl_pagina': lbl_pagina,
+            'start_positions': {
+                'start_x': start_x,
+                'content_start_y': content_start_y,
+                'riga_height': riga_height
+            }
+        }
+
+        self._navtable_groups[effective_key] = navtable_data
+
+        # Registra la posizione dell'elemento
+        self._register_element_position(effective_key, start_x, start_y, max_width, total_height)
+
+        # Salva le posizioni di tutti gli elementi del gruppo per la visibilità
+        self._navtable_element_positions[effective_key] = list(zip(navtable_elements, element_positions))
+
+        # Registra la stringa s per il gruppo
+        if s:
+            self.element_strings[effective_key] = s
+
+        # Registra tutti gli elementi del gruppo
+        for element in navtable_elements:
+            self._register_element(element, '', s)
+
+        # Aggiorna tracciamento altezza riga
+        self._update_row_height(total_height)
+
+        # Posizionamento per elemento successivo
+        self.current_x = start_x + max_width + 10
+        self.current_y = start_y
+
+        return self
+
+    def _create_image_element(self, image_path, width, height, x, y, key, s):
+        """Metodo helper per creare un elemento immagine per navtable"""
+        # Crea l'immagine (stesso codice del metodo image())
+        photo_image = None
+
+        if image_path and os.path.exists(image_path):
+            try:
+                # Carica e ridimensiona l'immagine usando PIL
+                from PIL import Image, ImageTk
+                pil_image = Image.open(image_path)
+                pil_image = pil_image.resize((width, height), Image.Resampling.LANCZOS)
+                photo_image = ImageTk.PhotoImage(pil_image)
+            except Exception as e:
+                print(f"Errore caricamento immagine {image_path}: {e}")
+                photo_image = None
+
+        # Se non c'è immagine o caricamento fallito, crea un placeholder
+        if photo_image is None:
+            try:
+                from PIL import Image, ImageTk, ImageDraw
+                # Crea un'immagine placeholder grigia
+                placeholder_image = Image.new('RGB', (width, height), color='lightgray')
+
+                # Aggiungi una X al centro per indicare immagine mancante
+                draw = ImageDraw.Draw(placeholder_image)
+                # Disegna una X
+                draw.line([(0, 0), (width - 1, height - 1)], fill='gray', width=2)
+                draw.line([(0, height - 1), (width - 1, 0)], fill='gray', width=2)
+                # Bordo
+                draw.rectangle([(0, 0), (width - 1, height - 1)], outline='gray', width=1)
+
+                photo_image = ImageTk.PhotoImage(placeholder_image)
+            except ImportError:
+                # Se PIL non è disponibile, crea un label semplice
+                image_label = tk.Label(self.root, text="IMG", width=6, height=3, bg='lightgray')
+                image_label.place(x=x, y=y)
+                return image_label
+
+        # Callback per il click sull'immagine
+        def image_callback(event):
+            # Estrai il numero della riga dal key
+            parts = key.split('_')
+            if len(parts) >= 4:  # formato: "key_IMG_ROW_i"
+                riga_clicked = int(parts[-1])
+                base_key = '_'.join(parts[:-3])  # Rimuovi "_IMG_ROW_i"
+
+                # Calcola la riga effettiva basandosi sulla pagina corrente
+                if base_key in self._navtable_groups:
+                    navtable_data = self._navtable_groups[base_key]
+                    pagina_corrente = navtable_data['pagina_corrente']
+                    righe_per_pagina = navtable_data['nr_rows']
+                    riga_effettiva = pagina_corrente * righe_per_pagina + riga_clicked
+
+                    # Metti l'evento nella coda con informazioni sulla riga
+                    values = self._get_values()
+                    values['_clicked_row'] = riga_effettiva
+                    values['_clicked_data'] = navtable_data['data'][riga_effettiva] if riga_effettiva < len(
+                        navtable_data['data']) else None
+                    self.event_queue.put((key, values))
+
+        # Crea il Label con l'immagine
+        image_label = tk.Label(self.root, image=photo_image)
+        image_label.image = photo_image  # Mantieni riferimento
+        image_label.bind("<Button-1>", image_callback)
+        image_label.config(cursor="hand2")
+        image_label.place(x=x, y=y)
+
+        return image_label
+
+    def _navtable_navigate(self, table_key, direction):
+        """Gestisce la navigazione della tabella (direction: -1 = indietro, 1 = avanti)"""
+        if table_key not in self._navtable_groups:
+            return
+
+        navtable_data = self._navtable_groups[table_key]
+        pagina_corrente = navtable_data['pagina_corrente']
+        totale_pagine = navtable_data['totale_pagine']
+
+        # Calcola nuova pagina
+        nuova_pagina = pagina_corrente + direction
+
+        # Controlla limiti
+        if nuova_pagina < 0 or nuova_pagina >= totale_pagine:
+            return  # Non fare nulla se fuori dai limiti
+
+        # Aggiorna pagina corrente
+        navtable_data['pagina_corrente'] = nuova_pagina
+
+        # Aggiorna il contenuto della tabella
+        self._navtable_update_page(table_key)
+
+    def _navtable_update_page(self, table_key):
+        """CORREZIONE BUG COMPLETA: Aggiorna il contenuto della pagina corrente della tabella"""
+        if table_key not in self._navtable_groups:
+            return
+
+        navtable_data = self._navtable_groups[table_key]
+        pagina_corrente = navtable_data['pagina_corrente']
+        data = navtable_data['data']
+        conf = navtable_data['conf']
+        righe_per_pagina = navtable_data['nr_rows']
+        folder_images = navtable_data['folder_images']
+        righe_elements = navtable_data['righe_elements']
+
+        # Calcola indici per questa pagina
+        inizio = pagina_corrente * righe_per_pagina
+        fine = min(inizio + righe_per_pagina, len(data))
+
+        # CORREZIONE BUG: Prima nascondi TUTTE le righe, poi mostra solo quelle necessarie
+        for i in range(righe_per_pagina):
+            riga_elements_list = righe_elements[i]
+            # Nascondi tutti gli elementi della riga
+            for element in riga_elements_list:
+                if hasattr(element, 'place_forget'):
+                    element.place_forget()
+
+        # Ora mostra solo le righe che hanno dati per questa pagina
+        for i in range(righe_per_pagina):
+            riga_dati_index = inizio + i
+            riga_elements_list = righe_elements[i]
+
+            if riga_dati_index < len(data) and riga_dati_index < fine:
+                # Questa riga ha dati da mostrare - RIPOSIZIONA tutti gli elementi
+
+                # Recupera le posizioni originali dalla registrazione iniziale
+                start_x = navtable_data['start_positions']['start_x']
+                content_start_y = navtable_data['start_positions']['content_start_y']
+                riga_height = navtable_data['start_positions']['riga_height']
+
+                riga_y = content_start_y + i * riga_height
+
+                # Riposiziona l'immagine (primo elemento della lista)
+                if riga_elements_list:
+                    image_element = riga_elements_list[0]
+                    image_element.place(x=start_x, y=riga_y)
+
+                    # Aggiorna l'immagine - SEMPRE ultima colonna
+                    if data[riga_dati_index]:
+                        image_filename = data[riga_dati_index][-1]  # Ultima colonna = nome immagine
+                        new_image_path = os.path.join(folder_images,
+                                                      image_filename) if folder_images else image_filename
+
+                        try:
+                            if os.path.exists(new_image_path):
+                                from PIL import Image, ImageTk
+                                pil_image = Image.open(new_image_path)
+                                pil_image = pil_image.resize((50, 50), Image.Resampling.LANCZOS)
+                                new_photo = ImageTk.PhotoImage(pil_image)
+
+                                image_element.config(image=new_photo)
+                                image_element.image = new_photo
+                            else:
+                                # Crea placeholder
+                                from PIL import Image, ImageTk, ImageDraw
+                                placeholder_image = Image.new('RGB', (50, 50), color='lightgray')
+                                try:
+                                    draw = ImageDraw.Draw(placeholder_image)
+                                    draw.line([(0, 0), (49, 49)], fill='gray', width=2)
+                                    draw.line([(0, 49), (49, 0)], fill='gray', width=2)
+                                    draw.rectangle([(0, 0), (49, 49)], outline='gray', width=1)
+                                except ImportError:
+                                    pass
+
+                                placeholder_photo = ImageTk.PhotoImage(placeholder_image)
+                                image_element.config(image=placeholder_photo)
+                                image_element.image = placeholder_photo
+                        except Exception as e:
+                            print(f"Errore caricamento immagine {new_image_path}: {e}")
+
+                    # Riposiziona e aggiorna i testi (elementi dal secondo in poi)
+                    current_x_text = start_x + 60  # Spazio dopo l'immagine
+                    keylist = list(conf.keys())
+
+                    for j, text_element in enumerate(riga_elements_list[1:]):
+                        # Riposiziona l'elemento di testo
+                        text_element.place(x=current_x_text, y=riga_y)
+
+                        # Aggiorna il contenuto del testo
+                        if j < len(keylist) and j < len(
+                                data[riga_dati_index]) - 1:  # -1 per escludere ultima colonna (immagine)
+                            text_element.config(text=str(data[riga_dati_index][j]))
+                        else:
+                            text_element.config(text='')
+
+                        # Calcola posizione X per il prossimo elemento
+                        text_width = conf[keylist[j]][1] * 10 if j < len(keylist) else 100
+                        current_x_text += text_width + 5
+
+        # Aggiorna label pagina
+        navtable_data['lbl_pagina'].config(text=f" Pagina {pagina_corrente + 1}/{navtable_data['totale_pagine']}")
+
+    # Metodo helper da aggiungere alla classe NgElements
+    def _get_current_page_data_navtable(self, navtable_data):
+        """Restituisce i dati della pagina corrente di una tabella navigabile"""
+        pagina_corrente = navtable_data['pagina_corrente']
+        righe_per_pagina = navtable_data['nr_rows']
+        data = navtable_data['data']
+
+        inizio = pagina_corrente * righe_per_pagina
+        fine = min(inizio + righe_per_pagina, len(data))
+
+        return data[inizio:fine] if data else []
+
     def _get_values(self):
         """Raccoglie tutti i valori degli elementi input, checkbox, radio button e listbox"""
         values = {}
@@ -1278,4 +1704,18 @@ class NgElements:
                     else:
                         # Nessuna selezione - lista vuota
                         values[key] = []
+
+        # Valori delle tabelle navigabili (navtable)
+        if hasattr(self, '_navtable_groups'):
+            for key, navtable_data in self._navtable_groups.items():
+                if not key.startswith('__auto_key_'):
+                    # Restituisce informazioni sulla pagina corrente e dati selezionati
+                    values[key] = {
+                        'pagina_corrente': navtable_data['pagina_corrente'],
+                        'totale_pagine': navtable_data['totale_pagine'],
+                        'righe_per_pagina': navtable_data['nr_rows'],
+                        'dati_totali': len(navtable_data['data']),
+                        'dati_pagina_corrente': self._get_current_page_data_navtable(navtable_data)
+                    }
+
         return values
