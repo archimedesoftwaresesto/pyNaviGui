@@ -4,30 +4,28 @@
 from ng_core import NgCore
 from ng_defaults import NgDefaults
 from ng_layout import NgLayout
-from ng_elements import NgElements
+from ng_elements_00 import NgElementsBase00
+from ng_elements_10 import NgElementsBase10
+from ng_elements_20 import NgElementsBase20
+from ng_elements_30 import NgElementsBase30
+from ng_elements_40 import NgElementsBase40
+from ng_elements_50 import NgElementsBase50
+from ng_elements_90 import NgElementsBase90
+from ng_elements_nav import NgNavElements
 from ng_visibility import NgVisibility
 from ng_utils import NgUtils
 
 
-class Ng(NgCore, NgDefaults, NgLayout, NgElements, NgVisibility, NgUtils):
-    """Implementazione GUI basata su Tkinter - Versione modulare unificata
-    
-    Questa classe combina tutti i mixin per fornire l'interfaccia completa di pyNaviGui:
-    - NgCore: Gestione finestra, eventi, logica base
-    - NgDefaults: Sistema di parametri di default (set, _merge_defaults)
-    - NgLayout: Posizionamento e layout (gotoxy, crlf, setTextSize)
-    - NgElements: Elementi UI (text, input, button, checkboxes)
-    - NgVisibility: Visibilità e movimento (visible, move)
-    - NgUtils: Funzioni di utilità (exists, delete, finalize_layout)
-    """
+class Ng(NgCore, NgDefaults, NgLayout,
+         NgElementsBase00, NgElementsBase10, NgElementsBase20, NgElementsBase30,
+         NgElementsBase40, NgElementsBase50, NgElementsBase90,
+         NgNavElements, NgVisibility, NgUtils):
+    """Tkinter-based GUI implementation - Unified modular version
+
+    Combines all mixins to provide complete pyNaviGui interface"""
 
     def __init__(self, geometry='800x600', embed_mode=False, parent_root=None):
-        """Inizializza pyNaviGui con tutte le funzionalità
-        
-        Args:
-            geometry (str): Geometria della finestra (ignorata in embed_mode)
-            embed_mode (bool): Se True, non crea una finestra propria
-            parent_root: Root Tkinter genitore (richiesto se embed_mode=True)
-        """
-        # L'inizializzazione è gestita da NgCore che chiama tutti i _init_* dei mixin
+        """Initialize pyNaviGui with all functionality
+
+        Args: geometry, embed_mode, parent_root"""
         super().__init__(geometry, embed_mode, parent_root)

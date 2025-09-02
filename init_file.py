@@ -2,21 +2,21 @@
 # Licensed under the MIT License
 
 """
-pyNaviGui - Una libreria GUI semplice e intuitiva basata su Tkinter
+pyNaviGui - Simple and intuitive GUI library based on Tkinter
 
-Esempi di uso:
+Usage examples:
     import pyNaviGui as ng
-    
+
     window = ng.Ng()
     window.text('Hello').input('', k='name').button('OK', k='ok')
-    
+
     while True:
         event, values = window.read()
         if event == 'ok':
             print(f"Name: {values['name']}")
         if event == None:
             break
-            
+
     window.close()
 """
 
@@ -26,5 +26,4 @@ __version__ = "1.0.0"
 __author__ = "Dario Giacomelli"
 __license__ = "MIT"
 
-# Esponi solo la classe principale
 __all__ = ['Ng']

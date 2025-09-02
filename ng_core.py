@@ -5,17 +5,10 @@ import tkinter as tk
 import queue
 
 class NgCore:
-    """Classe base per pyNaviGui - gestisce finestra, eventi e logica base"""
+    """Base class for pyNaviGui - manages window, events and core logic"""
 
     def __init__(self, geometry='800x600', embed_mode=False, parent_root=None):
-        """Implementazione GUI basata su Tkinter con supporto per modalità embedded
-
-        Args:
-            geometry (str): Geometria della finestra (ignorata in embed_mode)
-            embed_mode (bool): Se True, non crea una finestra propria
-            parent_root: Root Tkinter genitore (richiesto se embed_mode=True)
-        """
-        # Inizializzazione attributi base
+        """Initialize GUI with embedded mode support"""
         self.title = 'pyNaviGui'
         self.geometry = geometry
         self.window_closed = False
@@ -23,23 +16,18 @@ class NgCore:
         self.event_handlers = {}
         self.initial_elements_count = 0
 
-        # MODALITÀ EMBEDDED
         self.embed_mode = embed_mode
 
         if embed_mode:
             if parent_root is None:
-                raise ValueError("parent_root è richiesto quando embed_mode=True")
+                raise ValueError("parent_root is required when embed_mode=True")
             self.root = parent_root
-            # Non applicare geometria o titolo in modalità embedded
         else:
-            # Inizializzazione Tkinter normale
             self.root = tk.Tk()
             self._update_title_impl()
             self._update_geometry_impl()
-            # Gestione chiusura finestra solo se non in embed_mode
             self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
-        # Inizializza i mixin (gli altri mixin devono implementare questi metodi)
         if hasattr(self, '_init_defaults'):
             self._init_defaults()
         if hasattr(self, '_init_layout'):
@@ -48,83 +36,78 @@ class NgCore:
             self._init_elements()
 
     def _on_closing(self):
-        """Chiamata quando la finestra viene chiusa"""
+        """Handle window closing"""
         self.window_closed = True
         self.event_queue.put((None, {}))
 
     def _update_title_impl(self):
-        """Implementazione specifica per aggiornare il titolo"""
+        """Update window title"""
         if hasattr(self, 'root'):
             self.root.title(self.title)
 
     def _update_geometry_impl(self):
-        """Implementazione specifica per aggiornare la geometria"""
+        """Update window geometry"""
         if hasattr(self, 'root') and self.geometry:
             self.root.geometry(self.geometry)
 
     def _close_impl(self):
-        """Implementazione specifica per la chiusura"""
+        """Close implementation"""
         if hasattr(self, 'root') and not self.window_closed:
             self.root.quit()
             self.root.destroy()
 
     def _delete_element_impl(self, element):
-        """Implementazione specifica per rimuovere un elemento dalla GUI Tkinter"""
+        """Remove element from GUI"""
         if hasattr(element, 'destroy'):
             element.destroy()
 
     def winTitle(self, title):
-        """Imposta il titolo della finestra"""
+        """Set window title"""
         self.title = title
         self._update_title_impl()
         return self
 
     def winGeometry(self, geometry):
-        """Imposta la geometria della finestra"""
+        """Set window geometry"""
         self.geometry = geometry
         self._update_geometry_impl()
         return self
 
     def register_event_handler(self, event_key, handler_func):
-        """Registra un handler per un evento specifico"""
+        """Register event handler"""
         self.event_handlers[event_key] = handler_func
 
     def process_event(self, event_key, values):
-        """Processa un evento usando l'handler registrato"""
+        """Process event with registered handler"""
         if event_key in self.event_handlers:
             return self.event_handlers[event_key](values)
         return None
 
     def show(self):
-        """Avvia il loop principale di Tkinter"""
+        """Start main loop"""
         self.root.mainloop()
         return self
 
     def read(self, timeout=None):
-        """Legge il prossimo evento (versione Tkinter)"""
+        """Read next event"""
         if self.window_closed:
             return None, {}
 
         try:
-            # Aggiorna la GUI
             self.root.update()
 
-            # Controlla se c'è un evento in coda
             if not self.event_queue.empty():
                 event, values = self.event_queue.get_nowait()
                 return event, values
             else:
-                # Se non ci sono eventi, restituisce stringa vuota
                 return '', {}
 
         except tk.TclError:
-            # Finestra è stata chiusa
             self.window_closed = True
             return None, {}
 
     def close(self):
-        """Chiude la finestra (solo se non in modalità embedded)"""
+        """Close window if not in embedded mode"""
         if not self.embed_mode:
             self.window_closed = True
             self._close_impl()
-        # In modalità embedded non chiudere il root perché appartiene al genitore

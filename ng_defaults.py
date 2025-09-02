@@ -2,27 +2,17 @@
 # Licensed under the MIT License
 
 class NgDefaults:
-    """Mixin per la gestione dei parametri di default"""
+    """Default parameters management mixin"""
 
     def _init_defaults(self):
-        """Inizializza le variabili per la funzione set()"""
+        """Initialize default parameter variables"""
         self.default_s = ''
         self.default_fg = ''
         self.default_bg = ''
         self.default_k_prefix = ''
 
     def set(self, s=None, fg=None, bg=None, k_prefix=None):
-        """Imposta parametri di default per tutti gli elementi successivi
-
-        Args:
-            s (str): Stringa di selezione di default (per visible, move, etc.)
-            fg (str): Colore del testo di default
-            bg (str): Colore dello sfondo di default
-            k_prefix (str): Prefisso da aggiungere automaticamente alle chiavi
-
-        Per resettare un parametro, passa una stringa vuota ''
-        Per non modificare un parametro, non passarlo o passa None
-        """
+        """Set default parameters for subsequent elements"""
         if s is not None:
             self.default_s = s
         if fg is not None:
@@ -35,15 +25,11 @@ class NgDefaults:
         return self
 
     def _merge_defaults(self, s='', fg='', bg='', k=''):
-        """Unisce i parametri passati con quelli di default
-
-        I parametri espliciti hanno sempre precedenza sui default
-        """
+        """Merge passed parameters with defaults"""
         merged_s = s if s else self.default_s
         merged_fg = fg if fg else self.default_fg
         merged_bg = bg if bg else self.default_bg
 
-        # Per le chiavi, aggiungi il prefisso solo se c'è una chiave
         merged_k = k
         if k and self.default_k_prefix:
             merged_k = self.default_k_prefix + k
@@ -51,7 +37,7 @@ class NgDefaults:
         return merged_s, merged_fg, merged_bg, merged_k
 
     def resetDefaults(self):
-        """Resetta tutti i parametri di default"""
+        """Reset all default parameters"""
         self.default_s = ''
         self.default_fg = ''
         self.default_bg = ''
