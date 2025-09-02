@@ -2,6 +2,13 @@
 # Licensed under the MIT License
 
 import tkinter as tk
+import os
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    print("ERRORE: PIL/Pillow non installato. Installare con: pip install Pillow")
+    Image = None
+    ImageTk = None
 
 class NgElements:
     """Mixin per la gestione degli elementi UI"""
@@ -1066,6 +1073,100 @@ class NgElements:
         # Posizionamento per elemento successivo (stessa logica di checkbox/radio/listbox)
         self.current_x = start_x + max_width + 10
         self.current_y = start_y  # Torna alla Y iniziale
+
+        return self
+
+    def image(self, image_path='', size='', k='', s='', command=None):
+        """Crea un elemento immagine usando Tkinter Label con PhotoImage
+
+        Args:
+            image_path (str): Percorso del file immagine (se vuoto, crea un placeholder)
+            size (str): Dimensioni nel formato 'WIDTHxHEIGHT' (es. '200x100')
+            k (str): Chiave per identificare l'elemento
+            s (str): Stringa di selezione per operazioni di visibilità
+            command (callable): Funzione da chiamare quando si clicca sull'immagine (opzionale)
+        """
+        # Applica i default
+        s, _, _, k = self._merge_defaults(s, '', '', k)
+
+        # Parsing delle dimensioni
+        width, height = 100, 100  # Dimensioni di default
+        if size and 'x' in size.lower():
+            try:
+                size_parts = size.lower().split('x')
+                width = int(size_parts[0])
+                height = int(size_parts[1])
+            except (ValueError, IndexError):
+                pass  # Usa le dimensioni di default se il parsing fallisce
+
+        # Crea l'immagine
+        photo_image = None
+
+        if image_path and os.path.exists(image_path):
+            try:
+                # Carica e ridimensiona l'immagine usando PIL
+                pil_image = Image.open(image_path)
+                pil_image = pil_image.resize((width, height), Image.Resampling.LANCZOS)
+                photo_image = ImageTk.PhotoImage(pil_image)
+            except Exception as e:
+                print(f"Errore caricamento immagine {image_path}: {e}")
+                photo_image = None
+
+        # Se non c'è immagine o caricamento fallito, crea un placeholder
+        if photo_image is None:
+            # Crea un'immagine placeholder grigia
+            placeholder_image = Image.new('RGB', (width, height), color='lightgray')
+
+            # Aggiungi una X al centro per indicare immagine mancante
+            try:
+                from PIL import ImageDraw
+                draw = ImageDraw.Draw(placeholder_image)
+                # Disegna una X
+                draw.line([(0, 0), (width - 1, height - 1)], fill='gray', width=2)
+                draw.line([(0, height - 1), (width - 1, 0)], fill='gray', width=2)
+                # Bordo
+                draw.rectangle([(0, 0), (width - 1, height - 1)], outline='gray', width=1)
+            except ImportError:
+                pass  # Se ImageDraw non è disponibile, usa solo il rettangolo grigio
+
+            photo_image = ImageTk.PhotoImage(placeholder_image)
+
+        # Callback per il click sull'immagine
+        def image_callback(event):
+            if k:
+                # Metti l'evento nella coda
+                values = self._get_values()
+                self.event_queue.put((k, values))
+            elif command:
+                command()
+
+        # Crea il Label con l'immagine
+        image_label = tk.Label(self.root, image=photo_image)
+
+        # IMPORTANTE: Mantieni un riferimento all'immagine per evitare garbage collection
+        image_label.image = photo_image  # Trucco per mantenere il riferimento
+
+        # Se c'è un comando o una chiave, rendi l'immagine cliccabile
+        if command or k:
+            image_label.bind("<Button-1>", image_callback)
+            image_label.config(cursor="hand2")  # Cambia cursore per indicare che è cliccabile
+
+        # Posiziona l'elemento
+        image_label.place(x=self.current_x, y=self.current_y)
+        image_label.update_idletasks()
+
+        # Le dimensioni sono quelle specificate, non quelle calcolate
+        actual_width = width
+        actual_height = height
+
+        # Ottieni la chiave effettiva
+        effective_key = k if k else f"__auto_key_{self.element_counter}"
+
+        # Registra la posizione dell'elemento
+        self._register_element_position(effective_key, self.current_x, self.current_y, actual_width, actual_height)
+
+        self._update_position(actual_width, actual_height)
+        self._register_element(image_label, k, s)
 
         return self
 
