@@ -14,134 +14,166 @@ class NgUtils:
                 self.element_keys[k] is not None and
                 not k.startswith('__auto_key_'))
 
-    def delete(self, k):
-        """Delete element with key k"""
-        if not self.exists(k):
+    def delete(self, k='', kstart='', shas=''):
+        """Delete elements matching criteria
+
+        Args:
+            k: Delete element with this specific key
+            kstart: Delete elements with keys starting with this string
+            shas: Delete elements with selection string containing this value
+        """
+        # If no criteria provided, do nothing
+        if not k and not kstart and not shas:
             return self
 
-        # Special handling for navtable groups
-        if hasattr(self, '_navtable_groups') and k in self._navtable_groups:
-            navtable_data = self._navtable_groups[k]
+        # Get all keys matching the criteria
+        matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
 
-            # Delete navigation buttons and page label
-            if 'btn_back' in navtable_data and navtable_data['btn_back']:
-                self._delete_element_impl(navtable_data['btn_back'])
-                if navtable_data['btn_back'] in self.elements:
-                    self.elements.remove(navtable_data['btn_back'])
+        # Process each key
+        for key in matching_keys:
+            if not self.exists(key):
+                continue
 
-            if 'btn_forward' in navtable_data and navtable_data['btn_forward']:
-                self._delete_element_impl(navtable_data['btn_forward'])
-                if navtable_data['btn_forward'] in self.elements:
-                    self.elements.remove(navtable_data['btn_forward'])
+            # Special handling for navtable groups
+            if hasattr(self, '_navtable_groups') and key in self._navtable_groups:
+                navtable_data = self._navtable_groups[key]
 
-            if 'lbl_page' in navtable_data and navtable_data['lbl_page']:
-                self._delete_element_impl(navtable_data['lbl_page'])
-                if navtable_data['lbl_page'] in self.elements:
-                    self.elements.remove(navtable_data['lbl_page'])
+                # Delete navigation buttons and page label
+                if 'btn_back' in navtable_data and navtable_data['btn_back']:
+                    self._delete_element_impl(navtable_data['btn_back'])
+                    if navtable_data['btn_back'] in self.elements:
+                        self.elements.remove(navtable_data['btn_back'])
 
-            # Delete all row elements
-            if 'row_elements' in navtable_data:
-                for row_list in navtable_data['row_elements']:
-                    for element in row_list:
-                        self._delete_element_impl(element)
-                        if element in self.elements:
-                            self.elements.remove(element)
+                if 'btn_forward' in navtable_data and navtable_data['btn_forward']:
+                    self._delete_element_impl(navtable_data['btn_forward'])
+                    if navtable_data['btn_forward'] in self.elements:
+                        self.elements.remove(navtable_data['btn_forward'])
 
-            # Remove from navtable groups
-            del self._navtable_groups[k]
+                if 'lbl_page' in navtable_data and navtable_data['lbl_page']:
+                    self._delete_element_impl(navtable_data['lbl_page'])
+                    if navtable_data['lbl_page'] in self.elements:
+                        self.elements.remove(navtable_data['lbl_page'])
 
-            # Remove from navtable element positions
-            if hasattr(self, '_navtable_element_positions') and k in self._navtable_element_positions:
-                # Delete remaining elements from element positions (like title)
-                elements_positions = self._navtable_element_positions[k]
-                for element, pos in elements_positions:
-                    # Only delete if not already deleted above
-                    try:
-                        if element.winfo_exists():
+                # Delete all row elements
+                if 'row_elements' in navtable_data:
+                    for row_list in navtable_data['row_elements']:
+                        for element in row_list:
                             self._delete_element_impl(element)
                             if element in self.elements:
                                 self.elements.remove(element)
-                    except:
-                        pass  # Element already destroyed
 
-                del self._navtable_element_positions[k]
+                # Remove from navtable groups
+                del self._navtable_groups[key]
 
-        # Special handling for other group types
-        if hasattr(self, '_checkbox_groups') and k in self._checkbox_groups:
-            del self._checkbox_groups[k]
-            if hasattr(self, '_checkbox_element_positions') and k in self._checkbox_element_positions:
-                elements_positions = self._checkbox_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._checkbox_element_positions[k]
+                # Remove from navtable element positions
+                if hasattr(self, '_navtable_element_positions') and key in self._navtable_element_positions:
+                    # Delete remaining elements from element positions (like title)
+                    elements_positions = self._navtable_element_positions[key]
+                    for element, pos in elements_positions:
+                        # Only delete if not already deleted above
+                        try:
+                            if element.winfo_exists():
+                                self._delete_element_impl(element)
+                                if element in self.elements:
+                                    self.elements.remove(element)
+                        except:
+                            pass  # Element already destroyed
 
-        if hasattr(self, '_radio_groups') and k in self._radio_groups:
-            del self._radio_groups[k]
-            if hasattr(self, '_radio_element_positions') and k in self._radio_element_positions:
-                elements_positions = self._radio_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._radio_element_positions[k]
+                    del self._navtable_element_positions[key]
 
-        if hasattr(self, '_listbox_groups') and k in self._listbox_groups:
-            del self._listbox_groups[k]
-            if hasattr(self, '_listbox_element_positions') and k in self._listbox_element_positions:
-                elements_positions = self._listbox_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._listbox_element_positions[k]
+            # Special handling for other group types
+            if hasattr(self, '_checkbox_groups') and key in self._checkbox_groups:
+                del self._checkbox_groups[key]
+                if hasattr(self, '_checkbox_element_positions') and key in self._checkbox_element_positions:
+                    elements_positions = self._checkbox_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._checkbox_element_positions[key]
 
-        if hasattr(self, '_multiline_groups') and k in self._multiline_groups:
-            del self._multiline_groups[k]
-            if hasattr(self, '_multiline_element_positions') and k in self._multiline_element_positions:
-                elements_positions = self._multiline_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._multiline_element_positions[k]
+            if hasattr(self, '_radio_groups') and key in self._radio_groups:
+                del self._radio_groups[key]
+                if hasattr(self, '_radio_element_positions') and key in self._radio_element_positions:
+                    elements_positions = self._radio_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._radio_element_positions[key]
 
-        if hasattr(self, '_combobox_groups') and k in self._combobox_groups:
-            del self._combobox_groups[k]
-            if hasattr(self, '_combobox_element_positions') and k in self._combobox_element_positions:
-                elements_positions = self._combobox_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._combobox_element_positions[k]
+            if hasattr(self, '_listbox_groups') and key in self._listbox_groups:
+                del self._listbox_groups[key]
+                if hasattr(self, '_listbox_element_positions') and key in self._listbox_element_positions:
+                    elements_positions = self._listbox_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._listbox_element_positions[key]
 
-        if hasattr(self, '_table_groups') and k in self._table_groups:
-            del self._table_groups[k]
-            if hasattr(self, '_table_element_positions') and k in self._table_element_positions:
-                elements_positions = self._table_element_positions[k]
-                for element, pos in elements_positions:
-                    self._delete_element_impl(element)
-                    if element in self.elements:
-                        self.elements.remove(element)
-                del self._table_element_positions[k]
+            if hasattr(self, '_multiline_groups') and key in self._multiline_groups:
+                del self._multiline_groups[key]
+                if hasattr(self, '_multiline_element_positions') and key in self._multiline_element_positions:
+                    elements_positions = self._multiline_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._multiline_element_positions[key]
 
-        # Handle single elements
-        if k in self.element_keys:
-            element_to_remove = self.element_keys[k]
+            if hasattr(self, '_combobox_groups') and key in self._combobox_groups:
+                del self._combobox_groups[key]
+                if hasattr(self, '_combobox_element_positions') and key in self._combobox_element_positions:
+                    elements_positions = self._combobox_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._combobox_element_positions[key]
 
-            if element_to_remove in self.elements:
-                self.elements.remove(element_to_remove)
+            if hasattr(self, '_table_groups') and key in self._table_groups:
+                del self._table_groups[key]
+                if hasattr(self, '_table_element_positions') and key in self._table_element_positions:
+                    elements_positions = self._table_element_positions[key]
+                    for element, pos in elements_positions:
+                        self._delete_element_impl(element)
+                        if element in self.elements:
+                            self.elements.remove(element)
+                    del self._table_element_positions[key]
 
-            self._delete_element_impl(element_to_remove)
-            del self.element_keys[k]
+            # Handle area groups
+            if hasattr(self, '_area_positions') and key in self._area_positions:
+                area_info = self._area_positions[key]
 
-        # Clean up positions and strings
-        if k in self.element_positions:
-            del self.element_positions[k]
-        if k in self.element_strings:
-            del self.element_strings[k]
+                # Delete all elements in the area
+                if 'outer_frame' in area_info:
+                    self._delete_element_impl(area_info['outer_frame'])
+                if 'title_bar' in area_info:
+                    self._delete_element_impl(area_info['title_bar'])
+                if 'title_label' in area_info:
+                    self._delete_element_impl(area_info['title_label'])
+                if 'close_button' in area_info:
+                    self._delete_element_impl(area_info['close_button'])
+
+                # Remove from area positions
+                del self._area_positions[key]
+
+            # Handle single elements
+            if key in self.element_keys:
+                element_to_remove = self.element_keys[key]
+
+                if element_to_remove in self.elements:
+                    self.elements.remove(element_to_remove)
+
+                self._delete_element_impl(element_to_remove)
+                del self.element_keys[key]
+
+            # Clean up positions and strings
+            if key in self.element_positions:
+                del self.element_positions[key]
+            if key in self.element_strings:
+                del self.element_strings[key]
 
         return self
 

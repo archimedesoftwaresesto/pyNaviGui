@@ -70,6 +70,8 @@ class NgLayout:
         self._start_new_row()
         return self
 
+    # In ng_layout.py, modifica il metodo crlf():
+
     def crlf(self, spacing=0):
         """Go to new line using tallest element height"""
         if self.current_row_max_height > 0:
@@ -77,7 +79,7 @@ class NgLayout:
         else:
             self.current_y = self.current_row_start_y + self.row_height + spacing
 
-        self.current_x = self.initial_x
+        self.current_x = self.initial_x  # Reset X position to initial X value
         self._start_new_row()
         return self
 

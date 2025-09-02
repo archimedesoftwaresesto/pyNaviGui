@@ -10,6 +10,7 @@ from ng_elements_20 import NgElementsBase20
 from ng_elements_30 import NgElementsBase30
 from ng_elements_40 import NgElementsBase40
 from ng_elements_50 import NgElementsBase50
+from ng_elements_60 import NgElementsBase60
 from ng_elements_90 import NgElementsBase90
 from ng_elements_nav import NgNavElements
 from ng_visibility import NgVisibility
@@ -18,7 +19,7 @@ from ng_utils import NgUtils
 
 class Ng(NgCore, NgDefaults, NgLayout,
          NgElementsBase00, NgElementsBase10, NgElementsBase20, NgElementsBase30,
-         NgElementsBase40, NgElementsBase50, NgElementsBase90,
+         NgElementsBase40, NgElementsBase50, NgElementsBase60, NgElementsBase90,
          NgNavElements, NgVisibility, NgUtils):
     """Tkinter-based GUI implementation - Unified modular version
 
@@ -29,3 +30,11 @@ class Ng(NgCore, NgDefaults, NgLayout,
 
         Args: geometry, embed_mode, parent_root"""
         super().__init__(geometry, embed_mode, parent_root)
+
+        # Initialize area functionality
+        if hasattr(self, '_init_area_elements'):
+            self._init_area_elements()
+
+        # Enable area mode for element placement
+        if hasattr(self, '_enable_area_mode'):
+            self._enable_area_mode()

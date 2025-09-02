@@ -17,7 +17,7 @@ class NgNavElements:
     """Mixin for complex navigable GUI elements"""
 
     def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images='', size_img='50x50',
-                 vgap=0, vnavgap=10):
+                 vgap=0, vnavgap=10, alternate_rowcolor=''):
         """Create navigable table with images and automatic pagination
 
         Args:
@@ -31,6 +31,7 @@ class NgNavElements:
             size_img: Image size in format 'WIDTHxHEIGHT' (default '50x50')
             vgap: Vertical gap between rows in pixels (default 0)
             vnavgap: Vertical gap between table and navigation buttons in pixels (default 10)
+            alternate_rowcolor: Background color for even rows (default '', no alternating color)
         """
         # Set default vertical gap if not provided
         if vgap is None:
@@ -116,12 +117,34 @@ class NgNavElements:
 
         content_start_y = self.current_y
 
+        # Create row background frames if alternating colors are requested
+        row_frames = []
+        max_column_width = 0
+        for col_key in table_conf:
+            max_column_width += table_conf[col_key][1] * 10 + 5
+        # Add width for the image column and padding
+        total_width = max_column_width + img_width + 15
+
         # Create ALWAYS nr_rows rows to avoid display bugs
         row_elements = []
 
         for i in range(nr_rows):
             row_y = content_start_y + i * row_spacing
             row_elements_list = []
+
+            # Create background frame for alternating colors if needed
+            row_frame = None
+            if alternate_rowcolor and i % 2 == 1:  # Apply color to even-indexed rows (0-indexed)
+                row_frame = tk.Frame(self.root, background=alternate_rowcolor,
+                                     width=total_width, height=row_height)
+                row_frame.place(x=start_x, y=row_y)
+                navtable_elements.append(row_frame)
+                element_positions.append((start_x, row_y))
+                row_frames.append(row_frame)
+                # Make sure the frame stays below other elements
+                row_frame.lower()
+            else:
+                row_frames.append(None)
 
             # Determine if this row has initial data to show
             has_initial_data = i < len(data) if data else False
@@ -159,6 +182,10 @@ class NgNavElements:
                 text_y = row_y + (row_height - 16) // 2  # 16 is approximate height of text
 
                 text_element = tk.Label(self.root, text=text_content, width=table_conf[col_key][1], anchor='w')
+                # If alternate row color is set, apply background to label
+                if alternate_rowcolor and i % 2 == 1:
+                    text_element.config(background=alternate_rowcolor)
+
                 text_element.place(x=current_x_text, y=text_y)
                 text_element.update_idletasks()
 
@@ -173,6 +200,8 @@ class NgNavElements:
                 for element in row_elements_list:
                     if hasattr(element, 'place_forget'):
                         element.place_forget()
+                if row_frames[i]:
+                    row_frames[i].place_forget()
 
             row_elements.append(row_elements_list)
             max_width = max(max_width, current_x_text - start_x)
@@ -230,6 +259,8 @@ class NgNavElements:
             'img_height': img_height,
             'vgap': vgap,
             'vnavgap': vnavgap,
+            'alternate_rowcolor': alternate_rowcolor,
+            'row_frames': row_frames,
             'start_positions': {
                 'start_x': start_x,
                 'content_start_y': content_start_y,
@@ -280,6 +311,15 @@ class NgNavElements:
                 navtable_data['lbl_page'].destroy()
         except:
             pass
+
+        # Delete row frames if they exist
+        if 'row_frames' in navtable_data:
+            for frame in navtable_data['row_frames']:
+                try:
+                    if frame:
+                        frame.destroy()
+                except:
+                    pass
 
         # Delete all row elements
         if 'row_elements' in navtable_data:
@@ -396,6 +436,8 @@ class NgNavElements:
         rows_per_page = navtable_data['nr_rows']
         folder_images = navtable_data['folder_images']
         row_elements = navtable_data['row_elements']
+        row_frames = navtable_data.get('row_frames', [None] * rows_per_page)
+        alternate_rowcolor = navtable_data.get('alternate_rowcolor', '')
 
         # Calculate indices for this page
         start_idx = current_page * rows_per_page
@@ -411,6 +453,13 @@ class NgNavElements:
                         element.place_forget()
                     except:
                         pass
+
+            # Hide row frames if they exist
+            if i < len(row_frames) and row_frames[i]:
+                try:
+                    row_frames[i].place_forget()
+                except:
+                    pass
 
         # Now show only rows that have data for this page
         for i in range(rows_per_page):
@@ -429,6 +478,13 @@ class NgNavElements:
 
                 # Calculate row position
                 row_y = content_start_y + i * row_spacing
+
+                # Show row frame if it exists and alternating color is enabled
+                if alternate_rowcolor and i % 2 == 1 and i < len(row_frames) and row_frames[i]:
+                    row_frames[i].place(x=start_x, y=row_y)
+                    row_frames[i].lift()  # Lift to ensure it's above any previous elements
+                    # Then lower it below the content that will be placed
+                    row_frames[i].lower()
 
                 # Reposition image (first element of the list)
                 if row_elements_list:
@@ -488,6 +544,13 @@ class NgNavElements:
                         try:
                             # Calculate vertical center of the row for text alignment
                             text_y = row_y + (row_height - 16) // 2  # 16 is approximate height of text
+
+                            # Update background color if needed
+                            if alternate_rowcolor and i % 2 == 1:
+                                text_element.config(background=alternate_rowcolor)
+                            else:
+                                # Reset to default system color if not an alternate row
+                                text_element.config(background=self.root.cget('bg'))
 
                             # Reposition text element
                             text_element.place(x=current_x_text, y=text_y)
