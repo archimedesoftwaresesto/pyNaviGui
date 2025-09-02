@@ -16,8 +16,27 @@ except ImportError:
 class NgNavElements:
     """Mixin for complex navigable GUI elements"""
 
-    def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images=''):
-        """Create navigable table with images and automatic pagination"""
+    def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images='', size_img='50x50',
+                 vgap=0, vnavgap=10):
+        """Create navigable table with images and automatic pagination
+
+        Args:
+            title_or_conf: Title string or configuration dictionary
+            conf: Column configuration dictionary (if title_or_conf is title)
+            data: Data rows list
+            nr_rows: Number of rows per page
+            k: Element key
+            s: Selection string
+            folder_images: Path to images folder
+            size_img: Image size in format 'WIDTHxHEIGHT' (default '50x50')
+            vgap: Vertical gap between rows in pixels (default 0)
+            vnavgap: Vertical gap between table and navigation buttons in pixels (default 10)
+        """
+        # Set default vertical gap if not provided
+        if vgap is None:
+            vgap = 0
+        if vnavgap is None:
+            vnavgap = 10
         s, _, _, k = self._merge_defaults(s, '', '', k)
 
         if conf is None:
@@ -46,9 +65,31 @@ class NgNavElements:
             max_width = max(max_width, title_width)
             self.current_y += title_height + 2
 
+        # Parse image size
+        img_width, img_height = 50, 50  # Default size
+        if size_img:
+            try:
+                size_parts = size_img.lower().split('x')
+                if len(size_parts) == 2:
+                    img_width = int(size_parts[0])
+                    img_height = int(size_parts[1])
+            except (ValueError, IndexError):
+                # If parsing fails, use default values
+                pass
+
+        # Calculate row height based on image height with minimal padding
+        # For very small images, use a smaller minimum height
+        if img_height <= 20:
+            row_height = max(img_height + 2, 22)  # For small images, keep rows compact
+        else:
+            row_height = max(img_height + 4, 25)  # For larger images, add a bit more space
+
+        # Add vertical gap between rows if specified
+        row_spacing = row_height + vgap
+
         if k:
             effective_key = k
-            # BUGFIX: Clean any existing navtable with same key before creating new one
+            # Clean any existing navtable with same key before creating new one
             if hasattr(self, '_navtable_groups') and effective_key in self._navtable_groups:
                 self._cleanup_navtable(effective_key)
         else:
@@ -74,13 +115,12 @@ class NgNavElements:
             element_positions.append((start_x, start_y))
 
         content_start_y = self.current_y
-        row_height = 60
 
         # Create ALWAYS nr_rows rows to avoid display bugs
         row_elements = []
 
         for i in range(nr_rows):
-            row_y = content_start_y + i * row_height
+            row_y = content_start_y + i * row_spacing
             row_elements_list = []
 
             # Determine if this row has initial data to show
@@ -95,15 +135,16 @@ class NgNavElements:
             else:
                 image_path = ''
 
-            # Create image element
-            img_element = self._create_image_element(image_path, 50, 50, start_x, row_y,
+            # Create image element - Center image vertically in the row
+            img_y = row_y + (row_height - img_height) // 2
+            img_element = self._create_image_element(image_path, img_width, img_height, start_x, img_y,
                                                      f"{effective_key}_IMG_ROW_{i}", f"{effective_key}_row_{i}")
             navtable_elements.append(img_element)
-            element_positions.append((start_x, row_y))
+            element_positions.append((start_x, img_y))
             row_elements_list.append(img_element)
 
             # Create text elements for columns (exclude last column which is always the image)
-            current_x_text = start_x + 60
+            current_x_text = start_x + img_width + 10  # Distance from image edge to text
             keylist = list(table_conf.keys())
 
             for j, col_key in enumerate(keylist):
@@ -114,17 +155,20 @@ class NgNavElements:
 
                 text_width = table_conf[col_key][1] * 10
 
+                # Calculate vertical center of the row for text alignment
+                text_y = row_y + (row_height - 16) // 2  # 16 is approximate height of text
+
                 text_element = tk.Label(self.root, text=text_content, width=table_conf[col_key][1], anchor='w')
-                text_element.place(x=current_x_text, y=row_y)
+                text_element.place(x=current_x_text, y=text_y)
                 text_element.update_idletasks()
 
                 navtable_elements.append(text_element)
-                element_positions.append((current_x_text, row_y))
+                element_positions.append((current_x_text, text_y))
                 row_elements_list.append(text_element)
 
                 current_x_text += text_width + 5
 
-            # BUGFIX: If there's no initial data, hide the row immediately
+            # If there's no initial data, hide the row immediately
             if not has_initial_data:
                 for element in row_elements_list:
                     if hasattr(element, 'place_forget'):
@@ -134,7 +178,8 @@ class NgNavElements:
             max_width = max(max_width, current_x_text - start_x)
 
         # Create navigation buttons with proper closure capture
-        nav_y = content_start_y + nr_rows * row_height + 10
+        # Position them below the last row with specified gap
+        nav_y = content_start_y + nr_rows * row_spacing + vnavgap
 
         def create_nav_callback(key, direction):
             """Create navigation callback with proper closure"""
@@ -162,9 +207,11 @@ class NgNavElements:
         navtable_elements.append(lbl_page)
         element_positions.append((lbl_page_x, nav_y))
 
+        # Calculate total height (title + rows + navigation)
         total_height = (title_height + 2 if title_height > 0 else 0) + \
-                       nr_rows * row_height + \
-                       btn_back.winfo_reqheight() + 15
+                       nr_rows * row_spacing - vgap + \
+                       vnavgap + \
+                       btn_back.winfo_reqheight() + 5
 
         # Save all necessary information for table management
         navtable_data = {
@@ -178,6 +225,11 @@ class NgNavElements:
             'btn_back': btn_back,
             'btn_forward': btn_forward,
             'lbl_page': lbl_page,
+            'size_img': size_img,
+            'img_width': img_width,
+            'img_height': img_height,
+            'vgap': vgap,
+            'vnavgap': vnavgap,
             'start_positions': {
                 'start_x': start_x,
                 'content_start_y': content_start_y,
@@ -284,6 +336,7 @@ class NgNavElements:
 
                 photo_image = ImageTk.PhotoImage(placeholder_image)
             except ImportError:
+                # Create a text label as fallback when PIL is not available
                 image_label = tk.Label(self.root, text="IMG", width=6, height=3, bg='lightgray')
                 image_label.place(x=x, y=y)
                 return image_label
@@ -371,14 +424,21 @@ class NgNavElements:
                 start_x = navtable_data['start_positions']['start_x']
                 content_start_y = navtable_data['start_positions']['content_start_y']
                 row_height = navtable_data['start_positions']['row_height']
+                vgap = navtable_data.get('vgap', 0)
+                row_spacing = row_height + vgap
 
-                row_y = content_start_y + i * row_height
+                # Calculate row position
+                row_y = content_start_y + i * row_spacing
 
                 # Reposition image (first element of the list)
                 if row_elements_list:
                     try:
                         image_element = row_elements_list[0]
-                        image_element.place(x=start_x, y=row_y)
+                        # Center the image vertically in the row
+                        img_width = navtable_data.get('img_width', 50)
+                        img_height = navtable_data.get('img_height', 50)
+                        img_y = row_y + (row_height - img_height) // 2
+                        image_element.place(x=start_x, y=img_y)
 
                         # Update image - ALWAYS last column
                         if data[data_row_index]:
@@ -389,20 +449,25 @@ class NgNavElements:
                             try:
                                 if os.path.exists(new_image_path):
                                     pil_image = Image.open(new_image_path)
-                                    pil_image = pil_image.resize((50, 50), Image.Resampling.LANCZOS)
+                                    img_width = navtable_data.get('img_width', 50)
+                                    img_height = navtable_data.get('img_height', 50)
+                                    pil_image = pil_image.resize((img_width, img_height), Image.Resampling.LANCZOS)
                                     new_photo = ImageTk.PhotoImage(pil_image)
 
                                     image_element.config(image=new_photo)
                                     image_element.image = new_photo
                                 else:
                                     # Create placeholder
-                                    placeholder_image = Image.new('RGB', (50, 50), color='lightgray')
+                                    img_width = navtable_data.get('img_width', 50)
+                                    img_height = navtable_data.get('img_height', 50)
+                                    placeholder_image = Image.new('RGB', (img_width, img_height), color='lightgray')
                                     try:
                                         if ImageDraw:
                                             draw = ImageDraw.Draw(placeholder_image)
-                                            draw.line([(0, 0), (49, 49)], fill='gray', width=2)
-                                            draw.line([(0, 49), (49, 0)], fill='gray', width=2)
-                                            draw.rectangle([(0, 0), (49, 49)], outline='gray', width=1)
+                                            draw.line([(0, 0), (img_width - 1, img_height - 1)], fill='gray', width=2)
+                                            draw.line([(0, img_height - 1), (img_width - 1, 0)], fill='gray', width=2)
+                                            draw.rectangle([(0, 0), (img_width - 1, img_height - 1)], outline='gray',
+                                                           width=1)
                                     except ImportError:
                                         pass
 
@@ -415,13 +480,17 @@ class NgNavElements:
                         pass
 
                     # Reposition and update text elements (from second element onwards)
-                    current_x_text = start_x + 60
+                    img_width = navtable_data.get('img_width', 50)
+                    current_x_text = start_x + img_width + 10  # Distance from image edge to text
                     keylist = list(conf.keys())
 
                     for j, text_element in enumerate(row_elements_list[1:]):
                         try:
+                            # Calculate vertical center of the row for text alignment
+                            text_y = row_y + (row_height - 16) // 2  # 16 is approximate height of text
+
                             # Reposition text element
-                            text_element.place(x=current_x_text, y=row_y)
+                            text_element.place(x=current_x_text, y=text_y)
 
                             # Update text content
                             if j < len(keylist) and j < len(
