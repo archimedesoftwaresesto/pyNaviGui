@@ -153,6 +153,9 @@ class NgElementsBase40:
 
         self._table_element_positions[effective_key] = list(zip(table_elements, element_positions))
 
+        # CORREZIONE: Registra il widget principale della tabella in element_keys
+        self.element_keys[effective_key] = table_widget
+
         if s:
             self.element_strings[effective_key] = s
 

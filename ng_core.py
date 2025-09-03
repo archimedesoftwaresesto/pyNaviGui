@@ -61,13 +61,13 @@ class NgCore:
         if hasattr(element, 'destroy'):
             element.destroy()
 
-    def winTitle(self, title):
+    def win_title(self, title):
         """Set window title"""
         self.title = title
         self._update_title_impl()
         return self
 
-    def winGeometry(self, geometry):
+    def win_size(self, geometry):
         """Set window geometry"""
         self.geometry = geometry
         self._update_geometry_impl()

@@ -39,7 +39,7 @@ class NgVisibility:
                 for key, el in self.element_keys.items():
                     if el == element and key in self.element_positions:
                         x, y, width, height = self.element_positions[key]
-                        element.place(x=x, y=y)
+                        element.place(x=x, y=y, width=width, height=height)
                         element_found = True
                         break
 
@@ -88,6 +88,28 @@ class NgVisibility:
                             break
             else:
                 element.place_forget()
+
+    def is_visible(self, k='', kstart='', shas=''):
+        """Check if elements matching criteria are visible"""
+        matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
+
+        # If no elements found, return False
+        if not matching_keys:
+            return False
+
+        # Check visibility status of matching elements
+        for key in matching_keys:
+            if key in self.element_keys:
+                element = self.element_keys[key]
+                try:
+                    # Use winfo_viewable() which returns 1 if the widget is viewable
+                    if hasattr(element, 'winfo_viewable'):
+                        if element.winfo_viewable():
+                            return True
+                except:
+                    pass
+
+        return False
 
     def move(self, xAdd=0, yAdd=0, shas='', k='', kstart=''):
         """Move elements by adding offset to coordinates"""

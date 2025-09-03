@@ -9,7 +9,7 @@ class NgElementsBase10:
 
     def checkboxes(self, title_or_options, options=None, k='', s=''):
         """Create checkbox group using Tkinter Checkbutton"""
-        s, _, _, k = self._merge_defaults(s, '', '', k)
+        s, fg, bg, k = self._merge_defaults(s, '', '', k)
 
         if options is None:
             title = None
@@ -26,7 +26,7 @@ class NgElementsBase10:
 
         title_element = None
         if title:
-            title_element = tk.Label(self.root, text=title, anchor='w')
+            title_element = tk.Label(self.root, text=title, anchor='w', bg=bg if bg else None)
             title_element.place(x=start_x, y=start_y)
             title_element.update_idletasks()
 
@@ -56,15 +56,27 @@ class NgElementsBase10:
 
         checkbox_start_y = self.current_y
 
+        # Determina il colore di sfondo per i checkbox
+        checkbox_bg = bg if bg else getattr(self, 'default_bg', None)
+
         for i, (display_text, value) in enumerate(parsed_options):
             var = tk.BooleanVar()
             checkbox_vars.append((var, value))
 
+            # Aggiungi il parametro bg al checkbox
+            checkbox_options = {
+                'text': display_text,
+                'variable': var,
+                'anchor': 'w'
+            }
+
+            # Applica lo sfondo solo se è stato specificato
+            if checkbox_bg:
+                checkbox_options['bg'] = checkbox_bg
+
             checkbox = tk.Checkbutton(
                 self.root,
-                text=display_text,
-                variable=var,
-                anchor='w'
+                **checkbox_options
             )
 
             checkbox.place(x=self.current_x, y=self.current_y)
@@ -115,7 +127,7 @@ class NgElementsBase10:
 
     def radio(self, title_or_options, options=None, k='', s='', default=None):
         """Create radio button group using Tkinter Radiobutton"""
-        s, _, _, k = self._merge_defaults(s, '', '', k)
+        s, fg, bg, k = self._merge_defaults(s, '', '', k)
 
         if options is None:
             title = None
@@ -132,7 +144,7 @@ class NgElementsBase10:
 
         title_element = None
         if title:
-            title_element = tk.Label(self.root, text=title, anchor='w')
+            title_element = tk.Label(self.root, text=title, anchor='w', bg=bg if bg else None)
             title_element.place(x=start_x, y=start_y)
             title_element.update_idletasks()
 
@@ -178,13 +190,25 @@ class NgElementsBase10:
 
         radio_start_y = self.current_y
 
+        # Determina il colore di sfondo per i radiobutton
+        radio_bg = bg if bg else getattr(self, 'default_bg', None)
+
         for i, (display_text, value) in enumerate(parsed_options):
+            # Aggiungi il parametro bg al radiobutton
+            radio_options = {
+                'text': display_text,
+                'variable': radio_var,
+                'value': value,
+                'anchor': 'w'
+            }
+
+            # Applica lo sfondo solo se è stato specificato
+            if radio_bg:
+                radio_options['bg'] = radio_bg
+
             radiobutton = tk.Radiobutton(
                 self.root,
-                text=display_text,
-                variable=radio_var,
-                value=value,
-                anchor='w'
+                **radio_options
             )
 
             radiobutton.place(x=self.current_x, y=self.current_y)

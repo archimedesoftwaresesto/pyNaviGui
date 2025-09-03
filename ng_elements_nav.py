@@ -19,19 +19,6 @@ class NgNavElements:
     def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images='', size_img='50x50',
                  vgap=0, vnavgap=10, alternate_rowcolor=''):
         """Create navigable table with images and automatic pagination
-
-        Args:
-            title_or_conf: Title string or configuration dictionary
-            conf: Column configuration dictionary (if title_or_conf is title)
-            data: Data rows list
-            nr_rows: Number of rows per page
-            k: Element key
-            s: Selection string
-            folder_images: Path to images folder
-            size_img: Image size in format 'WIDTHxHEIGHT' (default '50x50')
-            vgap: Vertical gap between rows in pixels (default 0)
-            vnavgap: Vertical gap between table and navigation buttons in pixels (default 10)
-            alternate_rowcolor: Background color for even rows (default '', no alternating color)
         """
         # Set default vertical gap if not provided
         if vgap is None:

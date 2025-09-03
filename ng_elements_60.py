@@ -5,278 +5,300 @@ import tkinter as tk
 
 
 class NgElementsBase60:
-    """Area elements: frames with border and title"""
+    """Panel element implementation - groups elements with optional border"""
 
-    def _init_area_elements(self):
-        """Initialize area variables"""
-        self._area_stack = []
-        self._area_positions = {}
-        self._current_area = None
-        self._orig_root = None
-        self._current_root = None
-        self._saved_default_s = []
+    def _init_panel_elements(self):
+        """Initialize panel variables"""
+        self._panel_stack = []
+        self._panel_groups = {}
+        self._current_panel_key = None
+        self._panel_padding = 15  # Default horizontal padding inside panels
 
-    def area(self, title='', geometry=None, k='', s='', bg='', border_color='#888888', border_width=1,
-             show_close_button=True, close_button_text='X'):
-        """Create or close an area (frame with border and optional title)
+    # Updated panel method in ng_elements_60.py
+    # This code shows modifications to enable customization of panel background color
+    # and ensure child elements inherit this color
 
-        Args:
-            title: Title for the area (empty string closes current area)
-            geometry: Size in format 'WIDTHxHEIGHT' (e.g. '200x150')
-            k: Element key
-            s: Selection string
-            bg: Background color
-            border_color: Border color
-            border_width: Border width in pixels
-            show_close_button: If True, adds a close button to the area title bar
-            close_button_text: Text to display on the close button (default 'X')
-
-        Returns:
-            self: For method chaining
-        """
-        s, _, bg, k = self._merge_defaults(s, '', bg, k)
-
-        # If title is empty, close current area and return to parent context
+    def panel(self, title='', geometry='200x150', k='', s='', padding=5, vpadding=5, bg='lightgray', visible=True):
+        """Start or end a panel group with customizable background color and visibility"""
         if not title:
-            if self._area_stack:
-                # Pop the current area from stack
-                area_info = self._area_stack.pop()
+            # End panel mode - restore original context
+            if hasattr(self, '_panel_stack') and self._panel_stack:
+                panel_data = self._panel_stack.pop()
+                self.current_x = panel_data['end_x']
+                self.current_y = panel_data['end_y']
+                self.default_s = panel_data['prev_s']
+                self.default_bg = panel_data['prev_bg']
+                self._current_panel_key = None
 
-                # Restore previous positioning context
-                self.current_x = area_info['parent_x']
-                self.current_y = area_info['parent_y']
-                self.initial_x = area_info['parent_initial_x']
+                # Make sure to complete positioning of the last row
+                self._start_new_row()
+            return self
 
-                # Restore original selection string
-                if self._saved_default_s:
-                    self.default_s = self._saved_default_s.pop()
+        # Start new panel
+        s, _, merged_bg, k = self._merge_defaults(s, '', bg, k)
 
-                # Restore the original root for subsequent elements
-                if not self._area_stack:
-                    self._current_root = self._orig_root
-                else:
-                    self._current_root = self._area_stack[-1]['frame']
+        # Use provided bg parameter with fallback to merged_bg from defaults
+        panel_bg = bg or merged_bg or 'lightgray'
 
-                return self
-            else:
-                # No areas to close
-                return self
+        # Store padding for this panel
+        self._panel_padding = padding
 
-        # Parse geometry if provided
-        width, height = 200, 150  # Default size
-        if geometry and 'x' in geometry.lower():
-            try:
-                size_parts = geometry.lower().split('x')
-                width = int(size_parts[0])
-                height = int(size_parts[1])
-            except (ValueError, IndexError):
-                pass
+        # Parse geometry
+        width, height = 200, 150
+        if 'x' in geometry:
+            parts = geometry.split('x')
+            if len(parts) == 2:
+                try:
+                    width = int(parts[0])
+                    height = int(parts[1])
+                except ValueError:
+                    pass
 
-        # Create main frame with border
+        # Create panel rectangle
         start_x = self.current_x
         start_y = self.current_y
 
-        # Store original root if not already stored
-        if self._orig_root is None:
-            self._orig_root = self.root
-            self._current_root = self.root
+        rect = tk.Frame(self.root, width=width, height=height, bg=panel_bg,
+                        highlightbackground='gray', highlightthickness=1)
+        rect.place(x=start_x, y=start_y)
 
-        # Create an effective key if none provided
-        effective_key = k if k else f"__auto_key_{self.element_counter}"
-        self.element_counter += 1
+        # Create close button
+        close_btn = tk.Button(self.root, text="×", width=2, height=1, bg=panel_bg,
+                              command=lambda: self._toggle_panel_visibility(k, s))
+        close_btn.place(x=start_x + width - 25, y=start_y + 2)
 
-        # Create outer frame (for border)
-        outer_frame = tk.Frame(self._current_root, bd=border_width, relief=tk.GROOVE,
-                               highlightbackground=border_color, highlightthickness=border_width)
-
-        # Create inner frame for content
-        inner_frame = tk.Frame(outer_frame, bg=bg if bg else self._current_root.cget('bg'))
-
-        title_height = 0
-        title_bar = None
+        # Create title if provided
         title_label = None
-        close_button = None
-
-        # Create title bar if title provided
         if title:
-            title_bar = tk.Frame(outer_frame, bg=bg if bg else self._current_root.cget('bg'))
-            title_bar.pack(side=tk.TOP, fill=tk.X, anchor=tk.W, padx=2, pady=2)
+            title_label = tk.Label(self.root, text=title, bg=panel_bg)
+            title_label.place(x=start_x + 10, y=start_y + 2)
 
-            # Create title label
-            title_label = tk.Label(title_bar, text=title, anchor='w', bg=bg if bg else self._current_root.cget('bg'))
-            title_label.pack(side=tk.LEFT, padx=3)
+        # Register elements
+        effective_key = k if k else f"__auto_key_{self.element_counter}"
+        self._register_element_position(effective_key, start_x, start_y, width, height)
 
-            # For access to button styles and event handling
-            close_button = None
-            close_button_key = f"{effective_key}_close_btn"
+        # Create panel elements tracking if not exists
+        if not hasattr(self, '_panel_groups'):
+            self._panel_groups = {}
 
-            # Reserve space for button but create it after the area setup is complete
-            close_button_frame = None
-            if show_close_button:
-                close_button_frame = tk.Frame(title_bar, bg=bg if bg else self._current_root.cget('bg'))
-                close_button_frame.pack(side=tk.RIGHT, padx=5, pady=2)
+        # Ensure we have a selection string for the panel
+        panel_s = s if s else f"panel_{effective_key}"
 
-            title_bar.update_idletasks()
-            title_height = title_bar.winfo_reqheight()
-
-        # Position and size the frames
-        inner_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        # Calculate total height including title and border
-        total_height = height + title_height + (2 * border_width) + 10  # 10 for padding
-
-        # Position the outer frame
-        outer_frame.place(x=start_x, y=start_y, width=width, height=total_height)
-        outer_frame.update_idletasks()
-
-        # Save the current position context before changing
-        parent_x = self.current_x
-        parent_y = self.current_y
-        parent_initial_x = self.initial_x
-
-        # Set new positioning context inside the area
-        new_x = 5  # Margin from border
-        new_y = 5  # Margin from border
-
-        # Register the area elements
-        if title_bar:
-            self._register_element(title_bar, '', s)
-        if title_label:
-            self._register_element(title_label, '', s)
-        if close_button:
-            self._register_element(close_button, '', s)
-
-        self._register_element(outer_frame, effective_key, s)
-        self._register_element(inner_frame, f"{effective_key}_inner", s)
-
-        # Register the position of the area
-        self._register_element_position(effective_key, start_x, start_y, width, total_height)
-
-        # Save current selection string and set new one for all elements in this area
-        self._saved_default_s.append(self.default_s)
-        if s:
-            self.default_s = s
-
-        # Push this area onto the stack
-        area_info = {
-            'frame': inner_frame,
-            'outer_frame': outer_frame,
-            'title_bar': title_bar,
-            'title_label': title_label,
-            'close_button': close_button,
-            'close_button_frame': close_button_frame,
-            'key': effective_key,
-            'parent_x': parent_x,
-            'parent_y': parent_y,
-            'parent_initial_x': parent_initial_x,
+        # Store panel data for internal reference
+        self._panel_groups[effective_key] = {
+            'rect': rect,
+            'close_btn': close_btn,
+            'title': title_label,
             'width': width,
             'height': height,
-            'total_height': total_height,
-            'selection_string': s
+            'elements': [],
+            'element_keys': [],
+            'start_x': start_x,
+            'start_y': start_y,
+            'padding': padding,
+            'background': panel_bg,
+            'selection_string': panel_s
         }
 
-        self._area_stack.append(area_info)
+        # Store original default_s and default_bg to restore it later
+        prev_s = self.default_s
+        prev_bg = getattr(self, 'default_bg', '')
 
-        # Update the root for subsequent elements
-        self._current_root = inner_frame
+        # Setup panel stack if not exists
+        if not hasattr(self, '_panel_stack'):
+            self._panel_stack = []
 
-        # Save in area positions for later reference
-        self._area_positions[effective_key] = area_info
+        # Save current context to restore when panel ends
+        self._panel_stack.append({
+            'key': effective_key,
+            'prev_s': prev_s,
+            'prev_bg': prev_bg,
+            'start_x': start_x,
+            'start_y': start_y,
+            'end_x': self.current_x,
+            'end_y': self.current_y + height + 5
+        })
 
-        # Update the current position to inside the area
-        self.current_x = new_x
-        self.current_y = new_y
-        self.initial_x = new_x
+        # Set current panel key so new elements can be tracked
+        self._current_panel_key = effective_key
 
-        # Now add the close button using the standard button method if requested
-        if show_close_button and close_button_frame:
-            # Save current context
-            temp_root = self.root
-            temp_x = self.current_x
-            temp_y = self.current_y
+        # Set vertical padding based on parameter or use default values
+        vpadding = vpadding if vpadding is not None else (25 if title else 5)
 
-            # Set context for close button
-            self.root = close_button_frame
-            self.current_x = 0
-            self.current_y = 0
+        # Move current position inside panel with proper padding
+        self.current_x = start_x + padding
+        self.current_y = start_y + vpadding
 
-            # Define close action
-            def close_area_callback():
-                if s:
-                    self.delete(shas=s)
-                else:
-                    self.delete(k=effective_key)
+        # Save initial X position inside the panel
+        self.initial_x = self.current_x
 
-            # Create standard button with the button method
-            close_button = tk.Button(
-                close_button_frame,
-                text=close_button_text,
-                command=close_area_callback
-            )
-            close_button.pack(side=tk.RIGHT)
+        # Explicitly reset row tracking for proper layout inside panel
+        self._start_new_row()
 
-            # Register button
-            self._register_element(close_button, close_button_key, s)
+        # Set default selection string to panel's selection string
+        # This ensures all elements inside get the same selection string
+        self.default_s = panel_s
 
-            # Restore context
-            self.root = temp_root
-            self.current_x = temp_x
-            self.current_y = temp_y
+        # Set default background color to panel's background color
+        # This ensures all elements inside inherit the same background
+        self.default_bg = panel_bg
 
-            # Update area info with close button
-            area_info['close_button'] = close_button
-            area_info['close_button_key'] = close_button_key
+        # Register main elements with the panel's selection string
+        self._register_element(rect, effective_key, panel_s)
+        self._register_element(close_btn, f"{effective_key}_close", panel_s)
+        if title_label:
+            self._register_element(title_label, f"{effective_key}_title", panel_s)
 
-        # Override the element creation methods to use the inner frame
-        self._override_element_methods()
-
-        # Update row height for layout calculations
-        self._update_row_height(total_height)
+        # Set visibility if requested to be hidden
+        if not visible:
+            # Use deferred execution to ensure all elements are created before hiding
+            self.root.after(10, lambda: self.visible(False, shas=panel_s))
 
         return self
 
-    def _override_element_methods(self):
-        """Override element creation methods to use the current area frame"""
-        # Save original methods if not already saved
-        if not hasattr(self, '_orig_methods'):
-            self._orig_methods = {}
+    # Updated _register_element method to apply panel's background color to child elements
+    def _register_element(self, element, key, s=''):
+        """Track elements inside panels and apply panel background color"""
+        # Call the original method first
+        self.elements.append(element)
 
-            # Override each element creation method
-            element_methods = [
-                'text', 'input', 'button', 'checkboxes', 'radio', 'listbox',
-                'combobox', 'multiline', 'table', 'image'
-            ]
+        if not key:
+            key = f"__auto_key_{self.element_counter}"
+            self.element_counter += 1
 
-            for method_name in element_methods:
-                if hasattr(self, method_name):
-                    # Save original method
-                    self._orig_methods[method_name] = getattr(self, method_name)
+        self.element_keys[key] = element
 
-                    # Create wrapper method
-                    def create_wrapper(orig_method):
-                        def wrapper(*args, **kwargs):
-                            # Temporarily replace root with current area
-                            orig_root = self.root
-                            self.root = self._current_root
+        if s:
+            self.element_strings[key] = s
 
-                            # Call original method
-                            result = orig_method(*args, **kwargs)
+        # If we're inside a panel, add this element to the panel's list
+        if hasattr(self, '_current_panel_key') and self._current_panel_key:
+            if self._current_panel_key in self._panel_groups:
+                panel_data = self._panel_groups[self._current_panel_key]
+                panel_data['elements'].append(element)
+                panel_data['element_keys'].append(key)
 
-                            # Restore original root
-                            self.root = orig_root
+                # Apply panel background color to applicable elements
+                if hasattr(self, 'default_bg') and self.default_bg and hasattr(element, 'config'):
+                    # Check if element type can accept background color
+                    element_class = element.__class__.__name__.lower()
+                    if any(cls in element_class for cls in ['label', 'frame', 'button', 'text', 'entry']):
+                        try:
+                            # Only set if the element has a config method that accepts bg
+                            element.config(bg=self.default_bg)
+                        except:
+                            pass
 
-                            return result
+    # Updated _merge_defaults method to handle default_bg properly
+    def _merge_defaults(self, s='', fg='', bg='', k=''):
+        """Merge passed parameters with defaults"""
+        merged_s = s if s else self.default_s
+        merged_fg = fg if fg else self.default_fg
+        merged_bg = bg if bg else getattr(self, 'default_bg', '')
 
-                        return wrapper
+        merged_k = k
+        if k and self.default_k_prefix:
+            merged_k = self.default_k_prefix + k
 
-                    # Apply wrapper
-                    setattr(self, method_name, create_wrapper(self._orig_methods[method_name]))
+        return merged_s, merged_fg, merged_bg, merged_k
 
-    def _restore_element_methods(self):
-        """Restore original element creation methods"""
-        if hasattr(self, '_orig_methods'):
-            for method_name, method in self._orig_methods.items():
-                setattr(self, method_name, method)
+    def _register_element(self, element, key, s=''):
+        """Override to track elements inside panels"""
+        # Call the original method first
+        self.elements.append(element)
 
-            # Clean up
-            del self._orig_methods
+        if not key:
+            key = f"__auto_key_{self.element_counter}"
+            self.element_counter += 1
+
+        self.element_keys[key] = element
+
+        if s:
+            self.element_strings[key] = s
+
+        # If we're inside a panel, add this element to the panel's list
+        if hasattr(self, '_current_panel_key') and self._current_panel_key:
+            if self._current_panel_key in self._panel_groups:
+                self._panel_groups[self._current_panel_key]['elements'].append(element)
+                self._panel_groups[self._current_panel_key]['element_keys'].append(key)
+
+    def _toggle_panel_visibility(self, panel_key, panel_s=None):
+        """Toggle panel visibility when close button is clicked
+
+        Args:
+            panel_key: Key of the panel to toggle
+            panel_s: Selection string of the panel (optional)
+        """
+        if not hasattr(self, '_panel_groups') or panel_key not in self._panel_groups:
+            return
+
+        panel_data = self._panel_groups[panel_key]
+
+        # Check if panel is visible
+        is_visible = True
+        try:
+            is_visible = panel_data['rect'].winfo_viewable()
+        except:
+            is_visible = False
+
+        # Get the selection string from the panel data
+        selection_string = panel_s if panel_s else panel_data.get('selection_string', '')
+
+        # Toggle visibility using the selection string
+        if selection_string:
+            # Use the visible method to toggle all elements with this selection string
+            self.visible(not is_visible, shas=selection_string)
+        else:
+            # If no selection string available, toggle only the panel elements directly
+            if is_visible:
+                # Hide panel frame and controls
+                if hasattr(panel_data['rect'], 'place_forget'):
+                    panel_data['rect'].place_forget()
+                if hasattr(panel_data['close_btn'], 'place_forget'):
+                    panel_data['close_btn'].place_forget()
+                if panel_data['title'] and hasattr(panel_data['title'], 'place_forget'):
+                    panel_data['title'].place_forget()
+
+                # Hide all elements in the panel
+                for element in panel_data['elements']:
+                    if hasattr(element, 'place_forget'):
+                        element.place_forget()
+            else:
+                # Show panel frame and controls
+                start_x, start_y, width, height = self.element_positions.get(panel_key, (0, 0, 100, 100))
+                panel_data['rect'].place(x=start_x, y=start_y, width=width, height=height)
+                panel_data['close_btn'].place(x=start_x + width - 25, y=start_y + 2)
+
+                if panel_data['title']:
+                    panel_data['title'].place(x=start_x + 10, y=start_y + 2)
+
+                # Show all elements in the panel
+                for element_key in panel_data['element_keys']:
+                    element = self.element_keys.get(element_key)
+                    if element and hasattr(element, 'place') and element_key in self.element_positions:
+                        x, y, width, height = self.element_positions[element_key]
+
+                        # Make sure the element is visible when shown again
+                        if width and height:
+                            element.place(x=x, y=y, width=width, height=height)
+                        else:
+                            element.place(x=x, y=y)
+
+    def _hide_elements_by_selection_string(self, s):
+        """Hide all elements with matching selection string"""
+        # Skip if empty selection string
+        if not s:
+            return
+
+        # Find all keys with matching selection string
+        matching_keys = []
+        for key, stored_s in self.element_strings.items():
+            if stored_s == s:
+                matching_keys.append(key)
+
+        # Hide all matching elements
+        for key in matching_keys:
+            if key in self.element_keys:
+                element = self.element_keys[key]
+                if hasattr(element, 'place_forget'):
+                    element.place_forget()

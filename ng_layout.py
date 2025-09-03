@@ -39,30 +39,31 @@ class NgLayout:
         self._update_row_height(height)
         self.current_x += width + 5
 
-    def setX(self, x):
+    def set_x(self, x):
         """Set current X coordinate"""
         self.current_x = x
         return self
 
-    def setY(self, y):
+    def set_y(self, y):
         """Set current Y coordinate"""
         self.current_y = y
+        self._start_new_row()
         return self
 
-    def setTextSize(self, width_chars, height_lines=1):
+    def set_text_size(self, width_chars, height_lines=1):
         """Set dimensions for next text elements"""
         self.text_width_chars = width_chars
         self.text_height_lines = height_lines
         return self
 
-    def setInputSize(self, width_chars, height_lines=1):
+    def set_input_size(self, width_chars, height_lines=1):
         """Set dimensions for next input elements"""
         self.input_width_chars = width_chars
         self.input_height_lines = height_lines
         return self
 
-    def gotoxy(self, x, y):
-        """Go to specified coordinates"""
+    def move_to(self, x, y):
+        """Move cursor to specified coordinates"""
         self.current_x = x
         self.current_y = y
         self.initial_x = x
@@ -70,10 +71,8 @@ class NgLayout:
         self._start_new_row()
         return self
 
-    # In ng_layout.py, modifica il metodo crlf():
-
-    def crlf(self, spacing=0):
-        """Go to new line using tallest element height"""
+    def br(self, spacing=0):
+        """Break to a new line, similar to HTML's <br> tag"""
         if self.current_row_max_height > 0:
             self.current_y = self.current_row_start_y + self.current_row_max_height + spacing + 3
         else:
@@ -83,7 +82,7 @@ class NgLayout:
         self._start_new_row()
         return self
 
-    def gotoy(self, y):
+    def move_y(self, y):
         """Go to Y coordinate and reset X"""
         self.current_y = y
         self.current_x = self.initial_x
@@ -91,7 +90,7 @@ class NgLayout:
         self._start_new_row()
         return self
 
-    def gotoBelow(self, k):
+    def move_below(self, k):
         """Position below element with key k"""
         if k in self.element_positions:
             x, y, width, height = self.element_positions[k]
@@ -101,7 +100,17 @@ class NgLayout:
             self._start_new_row()
         return self
 
-    def setRowHeigh(self, height):
+    def move_over(self, k):
+        """Position over (on top of) element with key k"""
+        if k in self.element_positions:
+            x, y, width, height = self.element_positions[k]
+            self.current_x = x
+            self.current_y = y
+            self.initial_x = x
+            self._start_new_row()
+        return self
+
+    def set_row_height(self, height):
         """Set current row height"""
         self.row_height = height
         return self

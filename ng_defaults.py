@@ -36,7 +36,7 @@ class NgDefaults:
 
         return merged_s, merged_fg, merged_bg, merged_k
 
-    def resetDefaults(self):
+    def reset_defaults(self):
         """Reset all default parameters"""
         self.default_s = ''
         self.default_fg = ''
