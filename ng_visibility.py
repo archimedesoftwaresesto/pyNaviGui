@@ -89,6 +89,18 @@ class NgVisibility:
             else:
                 element.place_forget()
 
+        # Force window refresh on macOS with micro-resize
+        geo_parts = self.root.geometry().split('+')
+        size_part = geo_parts[0]  # e.g., "300x300"
+        width, height = size_part.split('x')
+        width, height = int(width), int(height)
+
+        # Micro resize and back to force macOS window manager redraw
+        self.root.geometry(f"{width + 1}x{height}")
+        self.root.update()
+        self.root.geometry(f"{width}x{height}")
+        self.root.update()
+
     def is_visible(self, k='', kstart='', shas=''):
         """Check if elements matching criteria are visible"""
         matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
