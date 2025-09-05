@@ -69,8 +69,8 @@ class NgElementsBase00:
 
         return self
 
-    def input(self, text='', k='', s='', set_focus=False):
-        """Create input element with optional auto-focus"""
+    def input(self, text='', k='', s='', set_focus=False, event_enter=False, event_tab=False):
+        """Create input element with optional auto-focus and keyboard event handling"""
         s, _, _, k = self._merge_defaults(s, '', '', k)
 
         entry_options = {}
@@ -80,6 +80,24 @@ class NgElementsBase00:
         entry = tk.Entry(self.root, **entry_options)
         if text:
             entry.insert(0, text)
+
+        # Handle Enter key press event
+        if event_enter and k:
+            def enter_handler(event):
+                values = self._get_values()
+                self.event_queue.put((k, values))
+
+            entry.bind("<Return>", enter_handler)
+
+        # Handle Tab key press event
+        if event_tab and k:
+            def tab_handler(event):
+                values = self._get_values()
+                self.event_queue.put((f"{k}_TAB", values))
+                # Allow focus to move to the next widget (don't return 'break')
+
+            entry.bind("<Tab>", tab_handler)
+
         entry.place(x=self.current_x, y=self.current_y)
         entry.update_idletasks()
         width = entry.winfo_reqwidth()
