@@ -143,3 +143,50 @@ class NgVisibility:
         """Tkinter movement implementation"""
         if hasattr(element, 'place'):
             element.place(x=new_x, y=new_y)
+
+    def to_front(self, shas='', k='', kstart=''):
+        """Bring elements matching criteria to front of stacking order"""
+        matching_keys = self._get_matching_keys(k=k, kstart=kstart, shas=shas)
+
+        # First collect all elements, including panel rects
+        elements_to_lift = []
+
+        # Check if any of the matching keys are panels
+        panel_keys = []
+        if hasattr(self, '_panel_groups'):
+            for key in matching_keys:
+                if key in self._panel_groups:
+                    panel_keys.append(key)
+
+        # For panel keys, we need to lift the rect first, then all elements
+        for panel_key in panel_keys:
+            panel_data = self._panel_groups[panel_key]
+
+            # Add rect first (it should be at the bottom)
+            if 'rect' in panel_data and panel_data['rect']:
+                elements_to_lift.append(panel_data['rect'])
+
+            # Then add all panel elements
+            for element in panel_data['elements']:
+                elements_to_lift.append(element)
+
+            # Make sure title and close button are included
+            if 'title' in panel_data and panel_data['title']:
+                elements_to_lift.append(panel_data['title'])
+
+            if 'close_btn' in panel_data and panel_data['close_btn']:
+                elements_to_lift.append(panel_data['close_btn'])
+
+        # Add standard elements that match but aren't in panels
+        for key in matching_keys:
+            if key in self.element_keys:
+                element = self.element_keys[key]
+                if element not in elements_to_lift:
+                    elements_to_lift.append(element)
+
+        # Now lift all elements in order - first background rects, then content
+        for element in elements_to_lift:
+            if hasattr(element, 'lift'):
+                element.lift()
+
+        return self
