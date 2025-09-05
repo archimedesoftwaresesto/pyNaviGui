@@ -242,3 +242,18 @@ class NgUtils:
                 if key in self.element_strings:
                     del self.element_strings[key]
         return self
+
+    def set_focus(self, k=''):
+        """Set focus on a specific input element"""
+        if not k or not self.exists(k):
+            return self
+
+        element = self.element_keys.get(k)
+        if element and hasattr(element, 'focus_set'):
+            element.focus_set()
+
+            # For entry widgets, move cursor to the end of text
+            if hasattr(element, 'icursor'):
+                element.icursor('end')  # Using string 'end' instead of tk.END
+
+        return self

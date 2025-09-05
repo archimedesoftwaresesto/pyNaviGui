@@ -69,8 +69,8 @@ class NgElementsBase00:
 
         return self
 
-    def input(self, text='', k='', s=''):
-        """Create input element using Tkinter Entry"""
+    def input(self, text='', k='', s='', set_focus=False):
+        """Create input element with optional auto-focus"""
         s, _, _, k = self._merge_defaults(s, '', '', k)
 
         entry_options = {}
@@ -90,6 +90,11 @@ class NgElementsBase00:
 
         self._update_position(width, height)
         self._register_element(entry, k, s)
+
+        # Set focus if requested
+        if set_focus and k:
+            # Use after() to ensure the element is fully created before setting focus
+            self.root.after(10, lambda: self.set_focus(k))
 
         return self
 

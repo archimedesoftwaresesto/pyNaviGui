@@ -4,6 +4,7 @@
 import tkinter as tk
 import queue
 
+
 class NgCore:
     """Base class for pyNaviGui - manages window, events and core logic"""
 
@@ -90,6 +91,10 @@ class NgCore:
 
     def read(self, timeout=None):
         """Read next event"""
+        # Auto-finalize layout on first read() call
+        if not hasattr(self, 'initial_elements_count'):
+            self.finalize_layout()
+
         if self.window_closed:
             return None, {}
 
