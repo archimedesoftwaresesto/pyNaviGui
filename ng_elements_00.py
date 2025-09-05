@@ -69,8 +69,8 @@ class NgElementsBase00:
 
         return self
 
-    def input(self, text='', k='', s='', set_focus=False, event_enter=False, event_tab=False):
-        """Create input element with optional auto-focus and keyboard event handling"""
+    def input(self, text='', k='', s='', set_focus=False, event_enter=False, event_tab=False, event_change=0):
+        """Create input element with event handling for change, enter and tab"""
         s, _, _, k = self._merge_defaults(s, '', '', k)
 
         entry_options = {}
@@ -94,9 +94,33 @@ class NgElementsBase00:
             def tab_handler(event):
                 values = self._get_values()
                 self.event_queue.put((f"{k}_TAB", values))
-                # Allow focus to move to the next widget (don't return 'break')
+                # Allow focus to move to the next widget
 
             entry.bind("<Tab>", tab_handler)
+
+        # Handle content change event with delay
+        if event_change > 0 and k:
+            # Store the previous value to detect actual changes
+            entry.previous_value = text
+            # Variable to store the timer ID
+            entry.after_id = None
+
+            def content_changed(event=None):
+                current_value = entry.get()
+                # Only trigger if value actually changed
+                if current_value != entry.previous_value:
+                    entry.previous_value = current_value
+                    values = self._get_values()
+                    self.event_queue.put((f"{k}_CHANGE", values))
+
+            def on_key_release(event):
+                # Cancel previous timer if exists
+                if hasattr(entry, 'after_id') and entry.after_id:
+                    self.root.after_cancel(entry.after_id)
+                # Start new timer
+                entry.after_id = self.root.after(event_change, content_changed)
+
+            entry.bind("<KeyRelease>", on_key_release)
 
         entry.place(x=self.current_x, y=self.current_y)
         entry.update_idletasks()
