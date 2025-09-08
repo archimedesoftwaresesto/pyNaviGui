@@ -101,7 +101,7 @@ class NgElementsBase90:
                     else:
                         values[key] = []
 
-        # Navigation table values - FIXED: Use English key names
+        # Navigation table values - Using English key names
         if hasattr(self, '_navtable_groups'):
             for key, navtable_data in self._navtable_groups.items():
                 if not key.startswith('__auto_key_'):

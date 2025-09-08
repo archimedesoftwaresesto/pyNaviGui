@@ -6,8 +6,9 @@ import tkinter as tk
 class NgElementsBase40:
     """Data display elements: table"""
 
-    def table(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', rowcolors=None):
-        """Create table using Tkinter ttk.Treeview with optional title"""
+    def table(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', rowcolors=None,
+              event_click=False, event_dbclick=False):
+        """Create table using Tkinter ttk.Treeview with optional click events"""
         try:
             import tkinter.ttk as ttk
         except ImportError:
@@ -49,6 +50,52 @@ class NgElementsBase40:
                                     columns=column_keys,
                                     show='headings',
                                     height=nr_rows)
+
+        # Handle click and double-click events with proper coordination
+        if (event_click or event_dbclick) and k:
+            # Store timer reference in the widget itself
+            table_widget.click_timer = None
+            table_widget.double_click_pending = False
+
+            if event_click:
+                def table_click_handler(event):
+                    # Cancel any pending timer
+                    if table_widget.click_timer:
+                        self.root.after_cancel(table_widget.click_timer)
+
+                    # If double-click is also enabled, delay the click event
+                    if event_dbclick:
+                        table_widget.double_click_pending = False
+
+                        # Wait 300ms to see if a double-click follows
+                        def delayed_click():
+                            if not table_widget.double_click_pending:
+                                values = self._get_values()
+                                self.event_queue.put((k, values))
+
+                        table_widget.click_timer = self.root.after(300, delayed_click)
+                    else:
+                        # No double-click enabled, fire immediately
+                        values = self._get_values()
+                        self.event_queue.put((k, values))
+
+                table_widget.bind("<<TreeviewSelect>>", table_click_handler)
+
+            if event_dbclick:
+                def table_dbclick_handler(event):
+                    # Cancel the pending click timer
+                    if table_widget.click_timer:
+                        self.root.after_cancel(table_widget.click_timer)
+                        table_widget.click_timer = None
+
+                    # Mark that a double-click occurred
+                    table_widget.double_click_pending = True
+
+                    # Fire double-click event
+                    values = self._get_values()
+                    self.event_queue.put((f"{k}_DBCLICK", values))
+
+                table_widget.bind("<Double-Button-1>", table_dbclick_handler)
 
         for i, col_key in enumerate(column_keys):
             table_widget.heading(col_key, text=column_names[i])
@@ -153,7 +200,7 @@ class NgElementsBase40:
 
         self._table_element_positions[effective_key] = list(zip(table_elements, element_positions))
 
-        # CORREZIONE: Registra il widget principale della tabella in element_keys
+        # Register main table widget in element_keys
         self.element_keys[effective_key] = table_widget
 
         if s:

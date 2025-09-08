@@ -18,8 +18,7 @@ class NgNavElements:
 
     def navtable(self, title_or_conf, conf=None, data=None, nr_rows=5, k='', s='', folder_images='', size_img='50x50',
                  vgap=0, vnavgap=10, alternate_rowcolor=''):
-        """Create navigable table with images and automatic pagination
-        """
+        """Create navigable table with images and automatic pagination"""
         # Set default vertical gap if not provided
         if vgap is None:
             vgap = 0
@@ -66,7 +65,6 @@ class NgNavElements:
                 pass
 
         # Calculate row height based on image height with minimal padding
-        # For very small images, use a smaller minimum height
         if img_height <= 20:
             row_height = max(img_height + 2, 22)  # For small images, keep rows compact
         else:
@@ -216,8 +214,9 @@ class NgNavElements:
         navtable_elements.append(btn_forward)
         element_positions.append((btn_forward_x, nav_y))
 
+        # Updated page label to include total rows
         lbl_page_x = btn_forward_x + btn_forward.winfo_reqwidth() + 10
-        lbl_page = tk.Label(self.root, text=f" Page 1/{total_pages}", width=20, anchor='w')
+        lbl_page = tk.Label(self.root, text=f"Page 1/{total_pages} - total rows {len(data)}", width=25, anchor='w')
         lbl_page.place(x=lbl_page_x, y=nav_y)
         lbl_page.update_idletasks()
         navtable_elements.append(lbl_page)
@@ -437,7 +436,11 @@ class NgNavElements:
             for element in row_elements_list:
                 if hasattr(element, 'place_forget'):
                     try:
-                        element.place_forget()
+                        # Make sure we're not hiding navigation elements
+                        if (element != navtable_data.get('btn_back') and
+                            element != navtable_data.get('btn_forward') and
+                            element != navtable_data.get('lbl_page')):
+                            element.place_forget()
                     except:
                         pass
 
@@ -555,9 +558,10 @@ class NgNavElements:
                         except:
                             pass
 
-        # Update page label
+        # Update page label with total rows included
         try:
-            navtable_data['lbl_page'].config(text=f" Page {current_page + 1}/{navtable_data['total_pages']}")
+            total_rows = len(data)
+            navtable_data['lbl_page'].config(text=f"Page {current_page + 1}/{navtable_data['total_pages']} - total rows {total_rows}")
         except:
             pass
 

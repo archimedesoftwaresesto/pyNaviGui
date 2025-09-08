@@ -3,11 +3,13 @@
 
 import tkinter as tk
 
+
 class NgElementsBase20:
     """List elements: listbox and combobox"""
 
-    def listbox(self, title_or_options, options=None, k='', s='', default=None, nr_rows=5, multi_select=False):
-        """Create listbox using Tkinter Listbox"""
+    def listbox(self, title_or_options, options=None, k='', s='', default=None, nr_rows=5, multi_select=False,
+                event_click=False, event_dbclick=False):
+        """Create listbox using Tkinter Listbox with optional click and double-click events"""
         s, _, _, k = self._merge_defaults(s, '', '', k)
 
         if options is None:
@@ -46,6 +48,52 @@ class NgElementsBase20:
 
         selectmode = tk.EXTENDED if multi_select else tk.SINGLE
         listbox = tk.Listbox(self.root, height=nr_rows, selectmode=selectmode)
+
+        # Handle click and double-click events with proper coordination
+        if (event_click or event_dbclick) and k:
+            # Store timer reference in the widget itself
+            listbox.click_timer = None
+            listbox.double_click_pending = False
+
+            if event_click:
+                def listbox_click_handler(event):
+                    # Cancel any pending timer
+                    if listbox.click_timer:
+                        self.root.after_cancel(listbox.click_timer)
+
+                    # If double-click is also enabled, delay the click event
+                    if event_dbclick:
+                        listbox.double_click_pending = False
+
+                        # Wait 300ms to see if a double-click follows
+                        def delayed_click():
+                            if not listbox.double_click_pending:
+                                values = self._get_values()
+                                self.event_queue.put((k, values))
+
+                        listbox.click_timer = self.root.after(300, delayed_click)
+                    else:
+                        # No double-click enabled, fire immediately
+                        values = self._get_values()
+                        self.event_queue.put((k, values))
+
+                listbox.bind("<<ListboxSelect>>", listbox_click_handler)
+
+            if event_dbclick:
+                def listbox_dbclick_handler(event):
+                    # Cancel the pending click timer
+                    if listbox.click_timer:
+                        self.root.after_cancel(listbox.click_timer)
+                        listbox.click_timer = None
+
+                    # Mark that a double-click occurred
+                    listbox.double_click_pending = True
+
+                    # Fire double-click event
+                    values = self._get_values()
+                    self.event_queue.put((f"{k}_DBCLICK", values))
+
+                listbox.bind("<Double-Button-1>", listbox_dbclick_handler)
 
         scrollbar = tk.Scrollbar(self.root, orient=tk.VERTICAL, command=listbox.yview)
         listbox.config(yscrollcommand=scrollbar.set)
@@ -123,8 +171,8 @@ class NgElementsBase20:
 
         return self
 
-    def combobox(self, title_or_options, options=None, k='', s='', default=None, nr_rows=5):
-        """Create combobox using Tkinter ttk.Combobox"""
+    def combobox(self, title_or_options, options=None, k='', s='', default=None, nr_rows=5, event_change=False):
+        """Create combobox with optional change event support"""
         try:
             import tkinter.ttk as ttk
         except ImportError:
@@ -173,6 +221,14 @@ class NgElementsBase20:
                                        values=display_values,
                                        height=nr_rows,
                                        state='readonly')
+
+        # Add change event support
+        if event_change and k:
+            def combobox_change_handler(event):
+                values = self._get_values()
+                self.event_queue.put((k, values))
+
+            combobox_widget.bind("<<ComboboxSelected>>", combobox_change_handler)
 
         if default is not None:
             default_found = False
