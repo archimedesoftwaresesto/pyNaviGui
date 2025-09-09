@@ -37,6 +37,10 @@ class NgLayout:
     def _update_position(self, width, height=20):
         """Update position after adding element"""
         self._update_row_height(height)
+
+        # Store last element height to use for proper alignment of next element
+        self.last_element_height = height
+
         self.current_x += width + 5
 
     def set_x(self, x):

@@ -39,7 +39,7 @@ class NgElementsBase00:
         if key:
             self.element_positions[key] = (x, y, width, height)
 
-    def text(self, text='', k='', s='', fg='', bg=''):
+    def text(self, text='', k='', s='', fg='', bg='', font=None):
         """Create text element using Tkinter Label"""
         s, fg, bg, k = self._merge_defaults(s, fg, bg, k)
 
@@ -48,6 +48,21 @@ class NgElementsBase00:
             label_options['fg'] = fg
         if bg:
             label_options['bg'] = bg
+
+        # Handle font parameter
+        if font is not None:
+            # Support both string format ('Arial 12 bold') and tuple format (('Arial', 12, 'bold'))
+            if isinstance(font, str):
+                label_options['font'] = font
+            elif isinstance(font, tuple):
+                # Convert the tuple to the format tkinter expects
+                if len(font) == 2:  # ('Arial', 12)
+                    family, size = font
+                    label_options['font'] = (family, size)
+                elif len(font) >= 3:  # ('Arial', 12, 'bold') or ('Arial', 12, 'bold italic')
+                    family, size = font[0], font[1]
+                    style = ' '.join(font[2:])
+                    label_options['font'] = (family, size, style)
 
         if self.text_width_chars is not None:
             label_options['width'] = self.text_width_chars
@@ -61,6 +76,9 @@ class NgElementsBase00:
         width = label.winfo_reqwidth()
         height = label.winfo_reqheight()
 
+        # Update the row height based on actual element height
+        self._update_row_height(height)
+
         effective_key = k if k else f"__auto_key_{self.element_counter}"
         self._register_element_position(effective_key, self.current_x, self.current_y, width, height)
 
@@ -69,13 +87,35 @@ class NgElementsBase00:
 
         return self
 
-    def input(self, text='', k='', s='', set_focus=False, event_enter=False, event_tab=False, event_change=0):
-        """Create input element with event handling for change, enter and tab"""
-        s, _, _, k = self._merge_defaults(s, '', '', k)
+    def input(self, text='', k='', s='', fg='', bg='', font=None, set_focus=False, event_enter=False, event_tab=False,
+              event_change=0):
+        """Create input element with event handling"""
+        s, fg, bg, k = self._merge_defaults(s, fg, bg, k)
 
         entry_options = {}
         if self.input_width_chars is not None:
             entry_options['width'] = self.input_width_chars
+
+        # Apply colors if provided
+        if fg:
+            entry_options['fg'] = fg
+        if bg:
+            entry_options['bg'] = bg
+
+        # Handle font parameter
+        if font is not None:
+            # Support both string format ('Arial 12 bold') and tuple format (('Arial', 12, 'bold'))
+            if isinstance(font, str):
+                entry_options['font'] = font
+            elif isinstance(font, tuple):
+                # Convert the tuple to the format tkinter expects
+                if len(font) == 2:  # ('Arial', 12)
+                    family, size = font
+                    entry_options['font'] = (family, size)
+                elif len(font) >= 3:  # ('Arial', 12, 'bold') or ('Arial', 12, 'bold italic')
+                    family, size = font[0], font[1]
+                    style = ' '.join(font[2:])
+                    entry_options['font'] = (family, size, style)
 
         entry = tk.Entry(self.root, **entry_options)
         if text:
@@ -122,13 +162,28 @@ class NgElementsBase00:
 
             entry.bind("<KeyRelease>", on_key_release)
 
-        entry.place(x=self.current_x, y=self.current_y)
+        # Improved vertical alignment logic
+        y_offset = 0
+        if hasattr(self, 'last_element_height'):
+            # Get entry's required height before placing it
+            entry.pack()
+            entry_height = entry.winfo_reqheight()
+            entry.pack_forget()
+
+            # Calculate vertical center alignment between the label and entry
+            if self.last_element_height > entry_height:
+                y_offset = (self.last_element_height - entry_height) // 2
+            elif entry_height > self.last_element_height:
+                # If entry is taller than label, adjust position upward
+                y_offset = -(entry_height - self.last_element_height) // 2
+
+        entry.place(x=self.current_x, y=self.current_y + y_offset)
         entry.update_idletasks()
         width = entry.winfo_reqwidth()
         height = entry.winfo_reqheight()
 
         effective_key = k if k else f"__auto_key_{self.element_counter}"
-        self._register_element_position(effective_key, self.current_x, self.current_y, width, height)
+        self._register_element_position(effective_key, self.current_x, self.current_y + y_offset, width, height)
 
         self._update_position(width, height)
         self._register_element(entry, k, s)
@@ -140,9 +195,9 @@ class NgElementsBase00:
 
         return self
 
-    def button(self, text='', k='', s='', command=None):
-        """Create button using Tkinter Button"""
-        s, _, _, k = self._merge_defaults(s, '', '', k)
+    def button(self, text='', k='', s='', fg='', bg='', command=None, font=None):
+        """Create button with color and font support"""
+        s, fg, bg, k = self._merge_defaults(s, fg, bg, k)
 
         def button_callback():
             if k:
@@ -151,7 +206,30 @@ class NgElementsBase00:
             elif command:
                 command()
 
-        button = tk.Button(self.root, text=text, command=button_callback)
+        button_options = {'text': text, 'command': button_callback}
+
+        # Apply colors if provided
+        if fg:
+            button_options['fg'] = fg
+        if bg:
+            button_options['bg'] = bg
+
+        # Handle font parameter
+        if font is not None:
+            # Support both string format ('Arial 12 bold') and tuple format (('Arial', 12, 'bold'))
+            if isinstance(font, str):
+                button_options['font'] = font
+            elif isinstance(font, tuple):
+                # Convert the tuple to the format tkinter expects
+                if len(font) == 2:  # ('Arial', 12)
+                    family, size = font
+                    button_options['font'] = (family, size)
+                elif len(font) >= 3:  # ('Arial', 12, 'bold') or ('Arial', 12, 'bold italic')
+                    family, size = font[0], font[1]
+                    style = ' '.join(font[2:])
+                    button_options['font'] = (family, size, style)
+
+        button = tk.Button(self.root, **button_options)
         button.place(x=self.current_x, y=self.current_y)
         button.update_idletasks()
         width = button.winfo_reqwidth()
