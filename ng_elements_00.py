@@ -196,40 +196,121 @@ class NgElementsBase00:
         return self
 
     def button(self, text='', k='', s='', fg='', bg='', command=None, font=None):
-        """Create button with color and font support"""
+        """Create button with color and font support, macOS compatible using Canvas"""
+        import platform
+
         s, fg, bg, k = self._merge_defaults(s, fg, bg, k)
 
-        def button_callback():
+        def button_callback(event=None):
             if k:
                 values = self._get_values()
                 self.event_queue.put((k, values))
             elif command:
                 command()
 
-        button_options = {'text': text, 'command': button_callback}
+        # Check if we're on macOS and background color is specified
+        is_macos = platform.system() == 'Darwin'
 
-        # Apply colors if provided
-        if fg:
-            button_options['fg'] = fg
-        if bg:
-            button_options['bg'] = bg
+        if is_macos and bg:
+            # Create a Canvas-based button for macOS with background color support
 
-        # Handle font parameter
-        if font is not None:
-            # Support both string format ('Arial 12 bold') and tuple format (('Arial', 12, 'bold'))
-            if isinstance(font, str):
-                button_options['font'] = font
-            elif isinstance(font, tuple):
-                # Convert the tuple to the format tkinter expects
-                if len(font) == 2:  # ('Arial', 12)
-                    family, size = font
-                    button_options['font'] = (family, size)
-                elif len(font) >= 3:  # ('Arial', 12, 'bold') or ('Arial', 12, 'bold italic')
-                    family, size = font[0], font[1]
-                    style = ' '.join(font[2:])
-                    button_options['font'] = (family, size, style)
+            # First create a temporary label to measure text size
+            temp_label = tk.Label(self.root, text=text)
+            if font is not None:
+                if isinstance(font, str):
+                    temp_label.config(font=font)
+                elif isinstance(font, tuple):
+                    if len(font) == 2:
+                        family, size = font
+                        temp_label.config(font=(family, size))
+                    elif len(font) >= 3:
+                        family, size = font[0], font[1]
+                        style_part = ' '.join(font[2:])
+                        temp_label.config(font=(family, size, style_part))
 
-        button = tk.Button(self.root, **button_options)
+            temp_label.update_idletasks()
+            text_width = temp_label.winfo_reqwidth()
+            text_height = temp_label.winfo_reqheight()
+            temp_label.destroy()
+
+            # Create canvas with padding
+            padding_x = 20
+            padding_y = 8
+            canvas_width = text_width + padding_x
+            canvas_height = text_height + padding_y
+
+            canvas = tk.Canvas(self.root, width=canvas_width, height=canvas_height,
+                               highlightthickness=0, bd=0)
+
+            # Draw button background
+            canvas.create_rectangle(0, 0, canvas_width, canvas_height,
+                                    fill=bg, outline='gray', width=1)
+
+            # Configure text options
+            text_options = {
+                'text': text,
+                'fill': fg if fg else 'black'
+            }
+
+            if font is not None:
+                if isinstance(font, str):
+                    text_options['font'] = font
+                elif isinstance(font, tuple):
+                    if len(font) == 2:
+                        family, size = font
+                        text_options['font'] = (family, size)
+                    elif len(font) >= 3:
+                        family, size = font[0], font[1]
+                        style_part = ' '.join(font[2:])
+                        text_options['font'] = (family, size, style_part)
+
+            # Draw text centered
+            canvas.create_text(canvas_width // 2, canvas_height // 2, **text_options)
+
+            # Bind click events
+            canvas.bind("<Button-1>", button_callback)
+            canvas.bind("<Enter>", lambda e: canvas.config(cursor="hand2"))
+            canvas.bind("<Leave>", lambda e: canvas.config(cursor=""))
+
+            # Add pressed effect
+            def on_press(event):
+                canvas.configure(relief="sunken", bd=2)
+
+            def on_release(event):
+                canvas.configure(relief="flat", bd=0)
+                button_callback()
+
+            canvas.bind("<ButtonPress-1>", on_press)
+            canvas.bind("<ButtonRelease-1>", on_release)
+
+            button = canvas
+
+        else:
+            # Use regular tk.Button for non-macOS or when no background color is specified
+            button_options = {'text': text, 'command': button_callback}
+
+            # Apply colors if provided
+            if fg:
+                button_options['fg'] = fg
+            if bg:
+                button_options['bg'] = bg
+
+            # Handle font parameter
+            if font is not None:
+                if isinstance(font, str):
+                    button_options['font'] = font
+                elif isinstance(font, tuple):
+                    if len(font) == 2:
+                        family, size = font
+                        button_options['font'] = (family, size)
+                    elif len(font) >= 3:
+                        family, size = font[0], font[1]
+                        style_part = ' '.join(font[2:])
+                        button_options['font'] = (family, size, style_part)
+
+            button = tk.Button(self.root, **button_options)
+
+        # Common positioning and registration code
         button.place(x=self.current_x, y=self.current_y)
         button.update_idletasks()
         width = button.winfo_reqwidth()
