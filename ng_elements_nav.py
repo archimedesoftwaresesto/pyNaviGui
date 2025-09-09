@@ -575,3 +575,5 @@ class NgNavElements:
         end_idx = min(start_idx + rows_per_page, len(data))
 
         return data[start_idx:end_idx] if data else []
+
+#2029_0909G nr elements added
