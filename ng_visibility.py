@@ -43,49 +43,26 @@ class NgVisibility:
                         element_found = True
                         break
 
-                if not element_found and hasattr(self, '_checkbox_element_positions'):
-                    for group_key, elements_positions in self._checkbox_element_positions.items():
-                        for el, pos in elements_positions:
-                            if el == element:
-                                x, y = pos
-                                element.place(x=x, y=y)
-                                element_found = True
-                                break
-                        if element_found:
-                            break
+                # Check in group-specific element positions
+                position_attributes = [
+                    '_combobox_element_positions',
+                    '_checkbox_element_positions',
+                    '_radio_element_positions',
+                    '_listbox_element_positions',
+                    '_multiline_element_positions'
+                ]
 
-                if not element_found and hasattr(self, '_radio_element_positions'):
-                    for group_key, elements_positions in self._radio_element_positions.items():
-                        for el, pos in elements_positions:
-                            if el == element:
-                                x, y = pos
-                                element.place(x=x, y=y)
-                                element_found = True
+                for attr_name in position_attributes:
+                    if not element_found and hasattr(self, attr_name):
+                        for group_key, elements_positions in getattr(self, attr_name).items():
+                            for el, pos in elements_positions:
+                                if el == element:
+                                    x, y = pos
+                                    element.place(x=x, y=y)
+                                    element_found = True
+                                    break
+                            if element_found:
                                 break
-                        if element_found:
-                            break
-
-                if not element_found and hasattr(self, '_listbox_element_positions'):
-                    for group_key, elements_positions in self._listbox_element_positions.items():
-                        for el, pos in elements_positions:
-                            if el == element:
-                                x, y = pos
-                                element.place(x=x, y=y)
-                                element_found = True
-                                break
-                        if element_found:
-                            break
-
-                if not element_found and hasattr(self, '_multiline_element_positions'):
-                    for group_key, elements_positions in self._multiline_element_positions.items():
-                        for el, pos in elements_positions:
-                            if el == element:
-                                x, y = pos
-                                element.place(x=x, y=y)
-                                element_found = True
-                                break
-                        if element_found:
-                            break
             else:
                 element.place_forget()
 
