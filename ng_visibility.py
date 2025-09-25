@@ -162,8 +162,24 @@ class NgVisibility:
                     elements_to_lift.append(element)
 
         # Now lift all elements in order - first background rects, then content
+        import platform
+        is_macos = platform.system() == 'Darwin'
+
         for element in elements_to_lift:
-            if hasattr(element, 'lift'):
-                element.lift()
+            try:
+                if is_macos:
+                    # On macOS, use different approach to lift elements
+                    if hasattr(element, '_w'):
+                        try:
+                            # Try low-level approach for all widget types
+                            element.tk.call((element._w, 'raise'))
+                        except Exception as e:
+                            print(f"Warning: Could not lift element with tk.call: {e}")
+                elif hasattr(element, 'lift'):
+                    # On other platforms, use standard method
+                    element.lift()
+            except Exception as e:
+                # Silently ignore any lifting errors
+                print(f"Warning: Could not lift element {type(element)}: {e}")
 
         return self
