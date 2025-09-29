@@ -1,5 +1,9 @@
 # Copyright (c) 2025 Dario Giacomelli
 # Licensed under the MIT License
+# aaa
+
+
+
 
 class NgVisibility:
     """Visibility and movement management mixin"""
@@ -119,7 +123,7 @@ class NgVisibility:
     def _move_element_impl(self, element, new_x, new_y):
         """Tkinter movement implementation"""
         if hasattr(element, 'place'):
-            element.place(x=new_x, y=new_y) 
+            element.place(x=new_x, y=new_y)
 
     def to_front(self, shas='', k='', kstart=''):
         """Bring elements matching criteria to front of stacking order"""
